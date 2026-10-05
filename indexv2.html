@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Validación de pagos TIVA · Opción C</title>
+<title>Validación de pagos TIVA</title>
 <style>
 /* =========================================================
    BIMS UI Kit — v0.2 (2026-09-24)
@@ -521,17 +521,42 @@ textarea.bims-input { height:auto; min-height:92px; resize:vertical; line-height
 .mobile-nav { display:none; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
 @media (prefers-reduced-motion: no-preference) { .toast { animation: tin .2s ease-out; } @keyframes tin { from { transform:translateY(8px); opacity:.4 } to { transform:none; opacity:1 } } }
 
-/* Opción C (solo PRD, bajo costo) — NUEVO: no validado contra prod */
+/* v3 (alineada al PRD) — NUEVO: no validado contra prod */
 .liq-head { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:18px; }
 .liq-num { text-align:right; }
 .liq-num__label { font-size:var(--fs-sm); color:var(--bims-text-muted); text-transform:uppercase; letter-spacing:.03em; }
 .liq-num__value { display:inline-block; margin-top:4px; padding:4px 12px; background:var(--bims-bg-highlight); font-size:24px; }
 .company { font-size:var(--fs-lg); color:var(--bims-link); }
+.big { font-size:20px; font-family:var(--bims-font-bold); font-weight:700; }
+.kv { display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:8px 0; border-bottom:1px solid var(--bims-border); }
+.kv:last-child { border-bottom:0; }
+.kv > span:first-child { color:var(--bims-text-secondary); }
+.kv small { display:block; color:var(--bims-text-muted); font-size:var(--fs-sm); }
+.kv--strong { border-top:2px solid var(--bims-border); border-bottom:0; }
+.linkbtn { background:none; border:0; padding:0; color:var(--bims-link); font:inherit; cursor:pointer; }
+.viewer { min-height:380px; align-items:center; }
+.receipt { width:320px; }
+.due { color:var(--st-err-fg); font-family:var(--bims-font-bold); font-weight:700; }
+.comp-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.timeline { list-style:none; margin:0; padding:0; }
+.timeline li { display:grid; grid-template-columns:130px minmax(0,1fr); gap:12px; padding:7px 0; border-bottom:1px solid var(--bims-border); font-size:var(--fs-sm); }
+.timeline li:last-child { border-bottom:0; }
+.timeline li span:first-child { color:var(--bims-text-muted); }
+.prd-gap { border:1px dashed var(--st-warn-fg); background:var(--st-warn-bg); color:var(--st-warn-fg); padding:8px 12px; border-radius:var(--radius-sm); font-size:var(--fs-sm); margin-bottom:12px; }
+/* dropdown de notificaciones (Bootstrap 3 .dropdown-menu) */
 .notif-anchor { cursor:pointer; }
+.notif { position:absolute; right:60px; top:calc(var(--topbar-h) + 4px); width:340px; max-width:calc(100% - 32px); background:#fff; color:var(--bims-text); border:1px solid rgba(0,0,0,.15); border-radius:var(--radius-md); box-shadow:0 6px 12px rgba(0,0,0,.175); z-index:40; }
+.notif__head { padding:10px 14px; border-bottom:1px solid var(--bims-border); font-family:var(--bims-font-bold); font-weight:700; }
+.notif__item { display:block; width:100%; text-align:left; background:#fff; border:0; border-bottom:1px solid var(--bims-border); padding:10px 14px; font:inherit; color:inherit; cursor:pointer; }
+.notif__item:hover { background:#f5f9fc; }
+.notif__item:last-child { border-bottom:0; }
+.bims-app { position:relative; }
+.bims-sidebar__item[data-tab] { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.bims-sidebar__item[data-tab] .count { float:none; flex-shrink:0; }
+@media (max-width:720px) { .timeline li { grid-template-columns:minmax(0,1fr); gap:2px; } }
 .proto-switch { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 16px; background:#2b2f33; color:#fff; font-size:var(--fs-sm); }
-.proto-switch a { color:#cfd6db; border:1px solid #5a6268; border-radius:var(--radius-sm); padding:4px 10px; text-decoration:none; }
-.proto-switch a:hover { text-decoration:none; background:#3a3f44; }
-.proto-switch .is-on { background:#fff; color:#2b2f33; border-color:#fff; }
+.proto-switch button { background:transparent; color:#cfd6db; border:1px solid #5a6268; border-radius:var(--radius-sm); padding:4px 10px; font:inherit; cursor:pointer; }
+.proto-switch button.is-on { background:#fff; color:#2b2f33; border-color:#fff; }
 </style>
 </head>
 <body>
@@ -574,163 +599,453 @@ textarea.bims-input { height:auto; min-height:92px; resize:vertical; line-height
 
 
 <script>
+let PREVIEW = location.hash !== "#sin-preview";
 const ME = "Lucía Ferreira";
 const HOY = "05-10-2026";
+const CUENTA = "Sudameris · Cta. Cte. 15-406229-0";
+
+/* ---------- Datos de ejemplo ---------- */
+const A = (c, q, t, h) => ({ c, q, t, h }); // concepto, cantidad, tarifa diaria, a pagar hoy
+const C = (id, cargado, archivo, monto, fecha, banco, titular, op) => ({ id, cargado, archivo, r:{ monto, fecha, banco, titular, op }, estado:"revision" });
+
 const LIQS = [
-  { n:30514, razon:"HAY HIELO E.A.S.", ruc:"80098765-4", abonado:"lomas11", rep:"Ivan Amarilla", plan:"Plan Emprendedor · Mensual", cierre:"31-08-2026",
-    items:[["Plan Emprendedor 30 días",340000],["Adicionales hasta hoy (01-09 al 04-10)",1187400]], previo:0,
-    archivo:"transferencia_hayhielo.png", cargado:"01-10-2026 10:12", estado:"revision", asignado:null },
-  { n:30498, razon:"Ferretería Luxor S.A.", ruc:"80012345-6", abonado:"ferrelux", rep:"Carla Duarte", plan:"Plan Pro · Mensual", cierre:"03-10-2026",
-    items:[["Plan Pro 30 días",950000],["Adicionales hasta hoy (04-09 al 03-10)",291000]], previo:0,
-    archivo:"pago_octubre.pdf", cargado:"04-10-2026 11:15", estado:"revision", asignado:null, realMonto:1000000 },
-  { n:30475, razon:"Kiosko Central", ruc:"5123009-1", abonado:"kiosko-central", rep:"Rubén Aquino", plan:"Plan Básico · Mensual", cierre:"27-09-2026",
-    items:[["Plan Básico 30 días",340000],["Adicionales hasta hoy (28-08 al 27-09)",309000]], previo:500000,
-    archivo:"diferencia_kiosko.jpg", cargado:"05-10-2026 07:30", estado:"revision", asignado:null },
-  { n:30502, razon:"Mr. Cell", ruc:"50030805-4", abonado:"dbz", rep:"Ronald Martinez", plan:"Plan Básico · Semestral", cierre:"02-10-2026",
-    items:[["Plan Básico 6 meses (20% OFF)",1632000],["Adicionales hasta hoy (03-09 al 02-10)",168000]], previo:0,
-    archivo:"comprobante.jpg", cargado:"02-10-2026 18:40", estado:"revision", asignado:"Diego Ortiz" },
-  { n:30481, razon:"Agro Río Verde S.R.L.", ruc:"80098761-2", abonado:"agrorioverde", rep:"Marcos Villalba", plan:"Plan Empresa · Mensual", cierre:"04-10-2026",
-    items:[["Plan Empresa 30 días",1800000],["Adicionales hasta hoy (15-09 al 04-10)",380000]], previo:0,
-    archivo:"transf_agro.png", cargado:"05-10-2026 08:47", estado:"revision", asignado:ME },
+  { n:30514, abonado:"lomas11", razon:"HAY HIELO E.A.S.", ruc:"80098765-4", rep:"Ivan Amarilla", plan:"Plan Emprendedor", ciclo:"Mensual", planMonto:340000, cobertura:"05-10-2026 al 03-11-2026",
+    adicRango:"01-09-2026 al 04-10-2026", adic:[A("Facturación electrónica",1,3000,81000),A("Usuarios",5,400,39600),A("Empresas",7,1100,207900),A("Puntos de venta",12,1900,570000),A("Establecimientos",8,1100,237600),A("Centros de producción",1,400,10800),A("Monedas",1,1100,29700),A("Cuentas de fondos",1,400,10800)],
+    cuenta:"Vencida · en gracia hasta 08-10-2026", limite:"05-10-2026 10:12", vence:"hoy",
+    comps:[C(1,"01-10-2026 10:12","transferencia_hayhielo.png",1527400,"01/10/2026","Banco Continental","HAY HIELO E.A.S.","004612880")],
+    estado:"revision", tomado:null,
+    log:[["01-10-2026 10:12","El cliente cargó el comprobante desde Mi BIMS."],["01-10-2026 10:12","Se aplicó el período de gracia de 7 días (cuenta vencida)."],["01-10-2026 10:12","Se notificó a Soporte por TIVA y por mail."]] },
+  { n:30475, abonado:"kiosko-central", razon:"Kiosko Central", ruc:"5123009-1", rep:"Rubén Aquino", plan:"Plan Básico", ciclo:"Mensual", planMonto:340000, cobertura:"28-09-2026 al 27-10-2026",
+    adicRango:"28-08-2026 al 27-09-2026", adic:[A("Usuarios",4,400,48000),A("Puntos de venta",3,1900,171000),A("Facturación electrónica",1,3000,90000)],
+    cuenta:"Activa por prórroga hasta 05-10-2026", limite:"05-10-2026 23:59", vence:"hoy",
+    comps:[ Object.assign(C(1,"28-09-2026 11:37","transf_kiosko.jpg",500000,"28/09/2026","Banco Familiar","Rubén Aquino","55012987"), { estado:"parcial", recibido:500000, por:"Diego Ortiz", el:"28-09-2026 12:05" }),
+            C(2,"05-10-2026 07:30","diferencia_kiosko.jpg",149000,"05/10/2026","Banco Familiar","Rubén Aquino","55019341") ],
+    estado:"revision", tomado:null,
+    log:[["28-09-2026 11:37","El cliente cargó el comprobante 1 desde Mi BIMS."],["28-09-2026 12:05","Diego Ortiz aplicó prórroga parcial de 7 días. Recibido Gs. 500.000 de Gs. 649.000."],["05-10-2026 07:30","El cliente cargó el comprobante 2 (diferencia)."],["05-10-2026 07:30","Se notificó a Soporte por TIVA y por mail."]] },
+  { n:30502, abonado:"dbz", razon:"Mr. Cell", ruc:"50030805-4", rep:"Ronald Martinez", plan:"Plan Básico", ciclo:"Semestral (20% OFF)", planMonto:1632000, cobertura:"03-10-2026 al 01-04-2027",
+    adicRango:"03-09-2026 al 02-10-2026", adic:[A("Empresas",4,1100,132000),A("Usuarios",3,400,36000)],
+    cuenta:"Activa hasta 03-10-2026", limite:"06-10-2026 18:40", vence:"mañana",
+    comps:[C(1,"02-10-2026 18:40","comprobante.jpg",1800000,"02/10/2026","Banco Itaú","Mr. Cell","7790345521")],
+    estado:"revision", tomado:"Diego Ortiz",
+    log:[["02-10-2026 18:40","El cliente cargó el comprobante desde Mi BIMS."],["02-10-2026 18:40","Se notificó a Soporte por TIVA y por mail."],["05-10-2026 08:50","Diego Ortiz se asignó el caso."]] },
+  { n:30498, abonado:"ferrelux", razon:"Ferretería Luxor S.A.", ruc:"80012345-6", rep:"Carla Duarte", plan:"Plan Pro", ciclo:"Mensual", planMonto:950000, cobertura:"04-10-2026 al 02-11-2026",
+    adicRango:"04-09-2026 al 03-10-2026", adic:[A("Usuarios",10,400,120000),A("Puntos de venta",3,1900,171000)],
+    cuenta:"Vencida · en gracia hasta 11-10-2026", limite:"07-10-2026 09:00", vence:"en 2 días",
+    comps:[C(1,"04-10-2026 11:15","pago_octubre.pdf",1000000,"04/10/2026","Banco GNB","Ferretería Luxor S.A.","00918273")],
+    estado:"revision", tomado:null,
+    log:[["04-10-2026 11:15","El cliente cargó el comprobante desde Mi BIMS."],["04-10-2026 11:15","Se aplicó el período de gracia de 7 días (cuenta vencida)."],["04-10-2026 11:15","Se notificó a Soporte por TIVA y por mail."]] },
+  { n:30490, abonado:"lamodelo", razon:"Panadería La Modelo", ruc:"4455120-3", rep:"Hugo Cáceres", plan:"Plan Básico", ciclo:"Mensual", planMonto:340000, cobertura:"16-10-2026 al 14-11-2026",
+    adicRango:"16-09-2026 al 04-10-2026", adic:[A("Usuarios",2,400,15200)],
+    cuenta:"Activa hasta 16-10-2026", limite:"07-10-2026 08:02", vence:"en 2 días",
+    comps:[C(1,"05-10-2026 08:02","IMG_2291.jpg",340000,"16/08/2026","ueno bank","Hugo Cáceres","UE20260816-1177")],
+    estado:"revision", tomado:null,
+    log:[["05-10-2026 08:02","El cliente cargó el comprobante desde Mi BIMS."],["05-10-2026 08:02","Se notificó a Soporte por TIVA y por mail."]] },
+  { n:30481, abonado:"agrorioverde", razon:"Agro Río Verde S.R.L.", ruc:"80098761-2", rep:"Marcos Villalba", plan:"Plan Empresa", ciclo:"Mensual", planMonto:1800000, cobertura:"15-10-2026 al 13-11-2026",
+    adicRango:"15-09-2026 al 04-10-2026", adic:[A("Puntos de venta",10,1900,380000)],
+    cuenta:"Activa hasta 15-10-2026", limite:"07-10-2026 08:47", vence:"en 2 días",
+    comps:[C(1,"05-10-2026 08:47","transf_agro.png",2300000,"05/10/2026","Visión Banco","Agro Río Verde S.R.L.","3309127")],
+    estado:"revision", tomado:ME,
+    log:[["05-10-2026 08:47","El cliente cargó el comprobante desde Mi BIMS."],["05-10-2026 08:47","Se notificó a Soporte por TIVA y por mail."],["05-10-2026 09:02","Lucía Ferreira se asignó el caso."]] },
+  /* esperando diferencia */
+  { n:30466, abonado:"kinesiosur", razon:"Kinesio Sur", ruc:"4981276-5", rep:"Paola Núñez", plan:"Plan Pro", ciclo:"Mensual", planMonto:950000, cobertura:"02-10-2026 al 31-10-2026",
+    adicRango:"02-09-2026 al 01-10-2026", adic:[A("Usuarios",6,400,72000)], cuenta:"Activa por prórroga hasta 09-10-2026", limite:"09-10-2026", vence:"en 4 días",
+    comps:[ Object.assign(C(1,"02-10-2026 10:14","comprobante.png",822000,"02/10/2026","Banco Continental","Kinesio Sur","004577001"), { estado:"parcial", recibido:822000, por:"Ana Benítez", el:"02-10-2026 10:40" }) ],
+    estado:"parcial", tomado:"Ana Benítez", por:"Ana Benítez", el:"02-10-2026 10:40",
+    log:[["02-10-2026 10:14","El cliente cargó el comprobante desde Mi BIMS."],["02-10-2026 10:40","Ana Benítez aplicó prórroga parcial de 7 días. Recibido Gs. 822.000 de Gs. 1.022.000."],["02-10-2026 10:40","Se envió al cliente el mail de pago incompleto."]] },
+  /* historial */
+  { n:30211, abonado:"lamodelo", razon:"Panadería La Modelo", ruc:"4455120-3", rep:"Hugo Cáceres", plan:"Plan Básico", ciclo:"Mensual", planMonto:340000, cobertura:"16-08-2026 al 14-09-2026",
+    adicRango:"—", adic:[], cuenta:"—", limite:"18-08-2026", vence:"",
+    comps:[ Object.assign(C(1,"16-08-2026 12:30","IMG_1980.jpg",340000,"16/08/2026","ueno bank","Hugo Cáceres","UE20260816-1177"), { estado:"aprobado", recibido:340000 }) ],
+    estado:"aprobado", tomado:"Ana Benítez", por:"Ana Benítez", el:"16-08-2026 14:05", log:[["16-08-2026 14:05","Ana Benítez aprobó el pago. Factura 001-001-0004521."]] },
+  { n:30455, abonado:"opticavision", razon:"Óptica Visión", ruc:"3322819-0", rep:"Sofía Rolón", plan:"Plan Básico", ciclo:"Mensual", planMonto:340000, cobertura:"15-09-2026 al 14-10-2026",
+    adicRango:"—", adic:[], cuenta:"Vencida", limite:"27-09-2026", vence:"",
+    comps:[ Object.assign(C(1,"25-09-2026 15:02","foto.jpg",340000,"25/09/2026","Banco Familiar","Óptica Visión","—"), { estado:"rechazado", motivo:"Comprobante ilegible" }) ],
+    estado:"rechazado", tomado:"Ana Benítez", por:"Ana Benítez", el:"25-09-2026 15:40", log:[["25-09-2026 15:40","Ana Benítez rechazó el pago. Motivo: Comprobante ilegible."]] },
 ];
-let view = { name:"list" };
+const MOTIVOS = ["Comprobante ilegible", "Transferencia no acreditada en la cuenta", "Transferencia a otra cuenta", "Comprobante ya usado en otro pago", "Otro motivo"];
+
+/* ---------- Estado ---------- */
+let view = { name:"list", estado:"todos", filtro:"todos" };
+let draft = null, showAdic = false, compSel = null, notifOpen = false;
+
+/* ---------- Utilidades ---------- */
 const $ = s => document.querySelector(s);
-const gs = n => Math.round(n).toLocaleString("es-PY").replace(/,/g, ".");
+const gs = n => n == null || isNaN(n) ? "—" : Math.round(n).toLocaleString("es-PY").replace(/,/g, ".");
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
 const get = n => LIQS.find(l => l.n === n);
-const total = l => l.items.reduce((a, i) => a + i[1], 0);
-const aValidar = l => total(l) - l.previo;
-const pend = () => LIQS.filter(l => l.estado === "revision");
-const now = () => HOY + " 11:" + String(30 + Math.floor(Math.random() * 25)).padStart(2, "0");
+const adicTotal = l => l.adic.reduce((a, x) => a + x.h, 0);
+const total = l => l.planMonto + adicTotal(l);
+const recibidoPrevio = l => l.comps.filter(c => c.estado === "parcial").reduce((a, c) => a + c.recibido, 0);
+const aValidar = l => total(l) - recibidoPrevio(l);
+const actual = l => l.comps[l.comps.length - 1];
+const count = e => LIQS.filter(l => l.estado === e).length;
+const parseM = v => { const m = parseInt(String(v).replace(/\D/g, ""), 10); return isNaN(m) ? null : m; };
+function dupOf(op, self) {
+  const o = (op || "").trim().toLowerCase(); if (!o) return null;
+  for (const l of LIQS) for (const c of l.comps) if ((l.n !== self) && c.estado !== "revision" && c.estado !== "rechazado" && c.r.op.toLowerCase() === o) return { l, c };
+  return null;
+}
+function estadoBadge(l) {
+  return { revision:'<span class="st st--warn">En revisión</span>', parcial:'<span class="st st--info">Esperando diferencia</span>',
+           aprobado:'<span class="st st--ok">Pago aprobado</span>', rechazado:'<span class="st st--err">Pago rechazado</span>' }[l.estado];
+}
+const now = () => HOY + " 09:" + String(30 + Math.floor(Math.random() * 25)).padStart(2, "0");
+const sinTomar = () => LIQS.filter(l => l.estado === "revision" && !l.tomado);
 
+/* ---------- Notificaciones (topbar) ---------- */
 function renderBell() {
-  const b = $("#bellCount"); const n = pend().filter(l => !l.asignado).length;
+  const b = $("#bellCount"); const n = sinTomar().length;
   b.textContent = n; b.hidden = n === 0;
-  const a = b.parentElement; a.classList.add("notif-anchor"); a.dataset.bell = "1"; a.title = "Comprobantes nuevos para validar";
-}
-function renderSidebar() {
-  $("#sidebar").innerHTML = view.name === "list"
-    ? `<a class="bims-sidebar__item is-active" href="#">Listar comprobantes</a>`
-    : `<a class="bims-sidebar__item" href="#" data-back>‹ Volver a comprobantes</a><a class="bims-sidebar__item is-active" href="#">Ver</a><a class="bims-sidebar__item" href="#">Editar</a><a class="bims-sidebar__item" href="#">Adelantar Factura a Crédito</a>`;
+  const anchor = b.parentElement; anchor.classList.add("notif-anchor"); anchor.dataset.bell = "1"; anchor.title = "Notificaciones";
+  let dd = $("#notif");
+  if (!notifOpen) { if (dd) dd.remove(); return; }
+  if (!dd) { dd = document.createElement("div"); dd.id = "notif"; dd.className = "notif"; $(".bims-app").appendChild(dd); }
+  const items = sinTomar();
+  dd.innerHTML = `<!-- NUEVO: no validado contra prod --><div class="notif__head">Comprobantes nuevos para validar</div>` +
+    (items.length ? items.map(l => `<button class="notif__item" data-open="${l.n}"><b>${esc(l.razon)}</b> cargó un comprobante de Gs. ${gs(actual(l).r.monto)}<div class="small muted">Liquidación #${l.n} · Validar antes del ${l.limite}</div></button>`).join("")
+      : `<div class="notif__item muted">No hay comprobantes nuevos.</div>`);
 }
 
-/* ---------- Bandeja: solo pendientes ---------- */
+/* ---------- Sidebar ---------- */
+function renderSidebar() {
+  const sb = $("#sidebar");
+  if (view.name === "list") {
+    sb.innerHTML = `<a class="bims-sidebar__item is-active" href="#">Listar pagos a validar</a>`;
+  } else {
+    sb.innerHTML = `<a class="bims-sidebar__item" href="#" data-back>‹ Volver a la bandeja</a><a class="bims-sidebar__item is-active" href="#">Validar pago</a><a class="bims-sidebar__item" href="#">Ver liquidación</a><a class="bims-sidebar__item" href="#">Ver abonado</a>`;
+  }
+}
+
+/* ---------- Bandeja ---------- */
+const pd = t => { const m = /(\d\d)-(\d\d)-(\d{4})(?: (\d\d):(\d\d))?/.exec(t || ""); return m ? new Date(+m[3], m[2]-1, +m[1], +(m[4]||23), +(m[5]||59)).getTime() : 0; };
+const ORDEN = { revision:0, parcial:1, aprobado:2, rechazado:2 };
+function sortRows(rows) {
+  return rows.slice().sort((x, y) => ORDEN[x.estado] - ORDEN[y.estado]
+    || (ORDEN[x.estado] < 2 ? pd(x.limite) - pd(y.limite) : pd(y.el) - pd(x.el)));
+}
 function renderList() {
-  $("#crumb").textContent = "Comprobantes por validar";
-  const rows = pend();
+  $("#crumb").textContent = "Validación de pagos";
+  let rows = LIQS.slice();
+  if (view.estado !== "todos") rows = rows.filter(l => l.estado === view.estado);
+  if (view.filtro === "mios") rows = rows.filter(l => l.tomado === ME && l.estado === "revision");
+  if (view.filtro === "libres") rows = rows.filter(l => !l.tomado && l.estado === "revision");
+  rows = sortRows(rows);
+  const nLib = sinTomar().length, nMio = LIQS.filter(l => l.estado==="revision" && l.tomado===ME).length;
+  const est = (k, label, n) => `<button class="${view.estado===k?'is-active':''}" data-estado="${k}">${label}${n!=null?` (${n})`:""}</button>`;
+  const row = l => {
+    const open = l.estado === "revision" || l.estado === "parcial";
+    const c = actual(l);
+    const limite = l.estado === "revision"
+      ? `${l.limite}<div class="small ${l.vence==='hoy'?'due':'muted'}">${l.vence==='hoy'?'Vence hoy':l.vence}</div>`
+      : l.estado === "parcial" ? `${l.limite}<div class="small muted">fin de la prórroga</div>` : '<span class="muted">—</span>';
+    const monto = l.estado === "revision" ? gs(aValidar(l))
+      : l.estado === "parcial" ? `<span class="diff">${gs(aValidar(l))}</span><div class="small muted">diferencia</div>`
+      : gs(c.recibido ?? c.r.monto);
+    const quien = l.estado === "revision"
+      ? (l.tomado ? esc(l.tomado) : '<span class="muted">Sin asignar</span>')
+      : `${esc(l.por)}<div class="small muted">${l.el}</div>`;
+    const act = l.estado === "revision"
+      ? `<button class="bims-btn ${l.tomado===ME?'bims-btn--primary':'bims-btn--default'} bims-btn--sm" data-open="${l.n}">${!l.tomado ? "Asignarme" : l.tomado===ME ? "Validar" : "Ver"}</button>`
+      : `<button class="bims-btn bims-btn--default bims-btn--sm" data-open="${l.n}">Ver</button>`;
+    return `<tr class="is-row" data-open="${l.n}">
+      <td class="center"><a href="#" data-open="${l.n}">#${l.n}</a></td>
+      <td class="center">${estadoBadge(l)}</td>
+      <td>${c.cargado}${l.comps.length > 1 ? `<div class="small muted">Comprobante ${c.id}${l.estado==="revision"?" · diferencia":""}</div>` : ""}</td>
+      <td>${limite}</td>
+      <td>${esc(l.razon)}<div class="small"><a href="#">${l.abonado}</a></div></td><td>${l.plan}<div class="small muted">${l.ciclo}</div></td>
+      <td class="num">${monto}</td>
+      <td>${quien}</td><td class="center">${act}</td></tr>`;
+  };
   $("#main").innerHTML = `
-    <div class="bims-page-header"><h1 class="bims-page-header__title">Comprobantes por validar</h1></div>
+    <div class="bims-page-header"><h1 class="bims-page-header__title">Validación de pagos</h1>
+      <div class="bims-page-header__tools"><div class="bims-btn-group">
+        <button class="${view.filtro==='todos'?'is-active':''}" data-filtro="todos">Todos</button>
+        <button class="${view.filtro==='libres'?'is-active':''}" data-filtro="libres">Sin asignar (${nLib})</button>
+        <button class="${view.filtro==='mios'?'is-active':''}" data-filtro="mios">Asignados a mí (${nMio})</button>
+      </div></div></div>
     <div class="bims-page-content">
-      ${rows.length ? `<div class="bims-table-wrap"><table class="bims-table tabnum">
-        <thead><tr><th>Liquidación</th><th>Cargado el</th><th>Razón Social</th><th>RUC</th><th>Monto a Validar</th><th>Asignado a</th><th></th></tr></thead>
-        <tbody>${rows.map(l => `<tr class="is-row" data-open="${l.n}">
-          <td class="center"><a href="#" data-open="${l.n}">${l.n}</a></td>
-          <td class="center">${l.cargado}</td>
-          <td>${esc(l.razon)}</td><td>${l.ruc}</td>
-          <td class="num">${gs(aValidar(l))}</td>
-          <td>${l.asignado ? esc(l.asignado) : '<span class="muted">Sin asignar</span>'}</td>
-          <td class="center">${!l.asignado ? `<button class="bims-btn bims-btn--default bims-btn--sm" data-asignar="${l.n}">Asignarme</button>` : `<button class="bims-btn ${l.asignado===ME?'bims-btn--primary':'bims-btn--default'} bims-btn--sm" data-open="${l.n}">${l.asignado===ME?"Revisar":"Ver"}</button>`}</td>
-        </tr>`).join("")}</tbody></table></div>`
-      : `<div class="panel"><div class="panel__body muted" style="text-align:center;padding:40px 15px">No hay comprobantes por validar.</div></div>`}
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <span class="small muted">Estado</span>
+        <div class="bims-btn-group" style="flex-wrap:wrap">
+          ${est("todos","Todos")}${est("revision","En revisión",count("revision"))}${est("parcial","Esperando diferencia",count("parcial"))}${est("aprobado","Aprobados",count("aprobado"))}${est("rechazado","Rechazados",count("rechazado"))}
+        </div>
+      </div>
+      ${rows.length ? `<div class="bims-table-wrap"><table class="bims-table tabnum"><thead><tr>
+          <th>Liquidación</th><th>Estado</th><th>Comprobante cargado</th><th>Validar antes del</th><th>Cliente</th><th>Plan</th><th>Monto a Validar</th><th>Asignado a</th><th></th>
+        </tr></thead><tbody>${rows.map(row).join("")}</tbody></table></div>`
+        : `<div class="panel"><div class="panel__body muted" style="text-align:center;padding:40px 15px">No hay pagos con estos filtros.</div></div>`}
     </div>`;
 }
 
-/* ---------- Detalle: liquidación existente + bloque de comprobante ---------- */
+/* ---------- Detalle ---------- */
+function open(n) {
+  const l = get(n);
+  view = { ...view, name:"detail", n };
+  draft = { monto:"", op:"", fecha:"", obs:"" };
+  showAdic = false; compSel = actual(l).id; notifOpen = false;
+  render();
+}
+function tomar(l) { l.tomado = ME; l.log.push([now(), `${ME} se asignó el caso.`]); }
+
+function receipt(c) {
+  const r = c.r;
+  return `<div class="viewer"><div class="receipt tabnum" aria-label="Comprobante cargado por el cliente">
+      <div class="receipt__ok"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="m5 12 5 5 9-10"/></svg></div>
+      <div class="receipt__t">Transferencia enviada</div>
+      <div class="receipt__amt">Gs. ${gs(r.monto)}</div>
+      <div class="receipt__row"><span>Fecha</span><span>${r.fecha}</span></div>
+      <div class="receipt__row"><span>Banco origen</span><span>${esc(r.banco)}</span></div>
+      <div class="receipt__row"><span>Titular</span><span>${esc(r.titular)}</span></div>
+      <div class="receipt__row"><span>Cuenta destino</span><span>BIMS · Sudameris<br>Cta. Cte. 15-406229-0</span></div>
+      <div class="receipt__row"><span>Nro. de operación</span><span>${esc(r.op)}</span></div>
+    </div></div>
+    <div class="viewer-tools"><span class="small muted">${esc(c.archivo)} · cargado el ${c.cargado}</span>
+      <div class="bims-btn-group bims-btn-group--icons">
+        <button title="Ampliar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b3bac1" stroke-width="2.5"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M10 7v6M7 10h6"/></svg></button>
+        <button title="Descargar"><svg width="16" height="16" viewBox="0 0 24 24" fill="#b3bac1"><path d="M11 3h2v9l3-3 1.4 1.4L12 15.8 6.6 10.4 8 9l3 3zM4 18h16v2H4z"/></svg></button>
+      </div></div>`;
+}
+
+function montoPanel(l) {
+  const prev = recibidoPrevio(l);
+  return `<div class="panel">
+    <div class="panel__head"><span class="panel__title">Monto a validar</span></div>
+    <div class="panel__body tabnum">
+      <div class="kv"><span>Plan seleccionado<small>${l.plan} · ${l.ciclo} · ${l.cobertura}</small></span><span>Gs. ${gs(l.planMonto)}</span></div>
+      <div class="kv"><span>Adicionales hasta hoy<small>${l.adicRango} · <button class="linkbtn" data-adic>${showAdic?"Ocultar":"Mostrar"} detalle</button></small></span><span>Gs. ${gs(adicTotal(l))}</span></div>
+      ${showAdic ? `<div class="bims-table-wrap" style="margin:6px 0 10px"><table class="bims-table"><thead><tr><th>Concepto</th><th>Cantidad</th><th>Tarifa Diaria</th><th>A Pagar Hoy</th></tr></thead>
+        <tbody>${l.adic.map(a => `<tr><td>${a.c}</td><td class="num">${a.q}</td><td class="num">${gs(a.t)}</td><td class="num">${gs(a.h)}</td></tr>`).join("")}</tbody></table></div>` : ""}
+      <div class="kv"><span>Total a pagar (IVA incluido)</span><b>Gs. ${gs(total(l))}</b></div>
+      ${prev ? `<div class="kv"><span>Recibido antes<small>Comprobante 1 · prórroga parcial</small></span><span>− Gs. ${gs(prev)}</span></div>` : ""}
+      <div class="kv kv--strong"><span><b>${prev ? "Diferencia a validar" : "Monto a validar"}</b></span><span class="big">Gs. ${gs(aValidar(l))}</span></div>
+    </div></div>`;
+}
+
+function verifyPanel(l) {
+  const esperado = aValidar(l);
+  const m = parseM(draft.monto), has = m !== null;
+  const diff = has ? m - esperado : null;
+  const dup = dupOf(draft.op, l.n);
+  const filled = has && draft.op.trim() && draft.fecha;
+  let alert = "", primary = "";
+  if (dup) alert = `<div class="alert alert--warn">Este número de operación ya se usó en la <a href="#">liquidación #${dup.l.n}</a> (${dup.l.el.slice(0,10)}). Es probable que el cliente haya cargado un comprobante anterior. Rechazá el pago.</div>`;
+  else if (has && diff === 0) alert = `<div class="alert alert--ok">El monto recibido coincide con el monto a validar.</div>`;
+  else if (has && diff < 0) alert = `<div class="alert alert--warn">Recibido Gs. ${gs(m)} de Gs. ${gs(esperado)}. Faltan <b>Gs. ${gs(-diff)}</b>.<br>Con la prórroga parcial, la cuenta queda activa 7 días más (hasta el 12-10-2026) y le enviamos al cliente el saldo a transferir.</div>`;
+  else if (has && diff > 0) alert = `<div class="prd-gap"><b>Caso no definido en el PRD:</b> el monto recibido supera el monto a validar por Gs. ${gs(diff)}. En el proto se puede aprobar con una observación.</div>`;
+
+  const okAprobar = filled && !dup && (diff === 0 || (diff > 0 && draft.obs.trim()));
+  const okProrroga = filled && !dup && diff < 0;
+  if (has && diff < 0 && !dup) primary = `<button type="button" class="bims-btn bims-btn--primary bims-btn--auto" data-prorroga ${okProrroga?"":"disabled"}>Aplicar prórroga parcial</button>`;
+  else primary = `<button type="submit" class="bims-btn bims-btn--primary bims-btn--auto" ${okAprobar?"":"disabled"}>Aprobar pago</button>`;
+
+  return `<form class="panel" id="verForm" novalidate>
+    <div class="panel__head"><span class="panel__title">Validación</span><span class="small muted">Asignado a ${esc(l.tomado)}</span></div>
+    <div class="panel__body">
+      <div class="hint" style="margin:0 0 10px">Completá con los datos que figuran en el comprobante.</div>
+      <div class="grid2">
+        <div class="bims-field"><label class="bims-label" for="v-monto">Monto recibido <span class="req">*</span></label>
+          <div class="bims-input-group"><input id="v-monto" class="bims-input tabnum" style="text-align:right" value="${esc(draft.monto)}" inputmode="numeric" placeholder="0"><span class="bims-input-group__addon small">Gs.</span></div></div>
+        <div class="bims-field"><label class="bims-label" for="v-fecha">Fecha de transferencia <span class="req">*</span></label>
+          <input id="v-fecha" type="date" class="bims-input" value="${draft.fecha}"></div>
+      </div>
+      <div class="bims-field"><label class="bims-label" for="v-op">Nro. de operación <span class="req">*</span></label>
+        <input id="v-op" class="bims-input" value="${esc(draft.op)}" autocomplete="off"></div>
+      ${alert}
+      ${has && diff > 0 && !dup ? `<div class="bims-field"><label class="bims-label" for="v-obs">Observación <span class="req">*</span></label><textarea id="v-obs" class="bims-input">${esc(draft.obs)}</textarea></div>` : ""}
+      <div class="hint">${has && diff < 0 && !dup ? "Al aplicar la prórroga, el pago pasa a Esperando diferencia." : "Al aprobar, se renueva la suscripción y le enviamos al cliente la factura electrónica por mail."}</div>
+    </div>
+    <div class="actions">
+      <button type="button" class="bims-btn bims-btn--default bims-btn--auto" data-rechazar>Rechazar pago</button>
+      ${primary}
+    </div></form>`;
+}
+
+function resultPanel(l) {
+  const c = actual(l);
+  const body = {
+    aprobado:`<div class="alert alert--ok" style="margin:0">${esc(l.por)} aprobó el pago el ${l.el}.</div>`,
+    rechazado:`<div class="alert alert--warn" style="margin:0">${esc(l.por)} rechazó el pago el ${l.el}. Motivo: ${esc(c.motivo)}.</div>`,
+    parcial:`<div class="alert alert--info" style="margin:0">${esc(l.por)} aplicó prórroga parcial el ${l.el}. Falta que el cliente transfiera <b>Gs. ${gs(aValidar(l))}</b> antes del ${l.limite}.</div>`,
+  }[l.estado];
+  return `<div class="panel"><div class="panel__head"><span class="panel__title">Validación</span></div><div class="panel__body">${body}</div></div>`;
+}
+
 function renderDetail() {
-  const l = get(view.n), mine = l.asignado === ME;
-  $("#crumb").innerHTML = `Comprobantes por validar <span class="muted">›</span> Liquidación #${l.n}`;
+  const l = get(view.n);
+  $("#crumb").innerHTML = `Validación de pagos <span class="muted">›</span> Liquidación #${l.n}`;
+  const mine = l.estado === "revision" && l.tomado === ME;
+  const other = l.estado === "revision" && l.tomado && l.tomado !== ME;
+  const free = l.estado === "revision" && !l.tomado;
+  const c = l.comps.find(x => x.id === compSel) || actual(l);
   $("#main").innerHTML = `
-    <div class="bims-page-header"><h1 class="bims-page-header__title">Liquidación SaaS #${l.n}</h1></div>
+    <div class="bims-page-header"><h1 class="bims-page-header__title">Validar pago · Liquidación SaaS #${l.n}</h1><div class="bims-page-header__tools">${estadoBadge(l)}</div></div>
     <div class="bims-page-content">
+      <div class="mobile-nav"><button class="bims-btn bims-btn--default bims-btn--sm" data-back>‹ Volver a la bandeja</button></div>
+      ${free ? `<div class="alert alert--info" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><span>Este caso no está asignado. Asignátelo para validar el pago.</span><button class="bims-btn bims-btn--primary bims-btn--sm" data-tomar>Asignarme</button></div>` : ""}
+      ${other ? `<div class="alert alert--info">Este caso está asignado a ${esc(l.tomado)}. Solo podés consultarlo.</div>` : ""}
+      ${l.estado === "revision" ? `<div class="small" style="margin:-4px 0 12px">Validar antes del <span class="${l.vence==='hoy'?'due':''}">${l.limite}</span>${l.vence==='hoy'?' · vence hoy':''}</div>` : ""}
       <div class="panel" style="margin-bottom:18px"><div class="panel__body"><div class="liq-head">
-        <div><div class="company">${esc(l.razon)}</div><div class="muted">${l.ruc}</div>
-          <dl class="meta" style="margin:12px 0 0">
-            <dt>Abonado SaaS</dt><dd><a href="#">${l.abonado}</a></dd><dt>Representante</dt><dd>${esc(l.rep)}</dd>
-            <dt>Plan</dt><dd>${l.plan}</dd><dt>Estado</dt><dd>En revisión</dd>
+        <div><div class="company">${esc(l.razon)}</div><div class="muted">RUC ${l.ruc}</div>
+          <dl class="meta tabnum" style="margin:12px 0 0">
+            <dt>Abonado SaaS</dt><dd><a href="#">${l.abonado}</a></dd>
+            <dt>Representante</dt><dd>${esc(l.rep)}</dd>
+            <dt>Estado de la cuenta</dt><dd>${l.cuenta}</dd>
           </dl></div>
         <div class="liq-num tabnum"><div class="liq-num__label">Liquidación SaaS</div><div class="liq-num__value">${l.n}</div>
-          <div class="liq-num__label" style="margin-top:10px">Fecha de cierre</div><div>${l.cierre}</div></div>
+          <div class="liq-num__label" style="margin-top:10px">Cuenta destino</div><div class="small">${CUENTA}</div></div>
       </div></div></div>
 
-      <div class="panel" style="margin-bottom:18px">
-        <div class="panel__head"><span class="panel__title">Comprobante de pago</span><span class="st st--warn">En revisión</span></div>
-        <div class="panel__body">
-          <dl class="meta tabnum" style="margin:0 0 14px">
-            <dt>Cargado el</dt><dd>${l.cargado}</dd>
-            <dt>Adjunto</dt><dd><a href="#" data-file>${esc(l.archivo)}</a> · <a href="#" data-file>Abrir comprobante</a></dd>
-            ${l.previo ? `<dt>Recibido antes</dt><dd>Gs. ${gs(l.previo)} (prórroga parcial)</dd>` : ""}
-            <dt>Monto a validar</dt><dd><b>Gs. ${gs(aValidar(l))}</b></dd>
-            <dt>Asignado a</dt><dd>${l.asignado ? esc(l.asignado) : '<span class="muted">Sin asignar</span>'}</dd>
-          </dl>
-          ${!l.asignado ? `<button class="bims-btn bims-btn--primary bims-btn--auto" data-asignar="${l.n}">Asignarme</button>`
-            : !mine ? `<div class="alert alert--info" style="margin:0">Este comprobante está asignado a ${esc(l.asignado)}.</div>`
-            : `<div style="display:flex;gap:8px;flex-wrap:wrap">
-                <button class="bims-btn bims-btn--primary bims-btn--auto" data-aprobar>Aprobar pago</button>
-                <button class="bims-btn bims-btn--default bims-btn--auto" data-prorroga>Aplicar prórroga parcial</button>
-                <button class="bims-btn bims-btn--default bims-btn--auto" data-rechazar>Rechazar pago</button>
-              </div>`}
+      ${PREVIEW ? "" : `<div class="split">
+        <div style="min-width:0">${filesPanel(l)}${montoPanel(l)}</div>
+        <div style="min-width:0">${mine ? verifyPanel(l) : l.estado === "revision" ? "" : resultPanel(l)}</div>
+      </div>`}
+      <div class="split" id="previewSplit">
+        <div class="panel">
+          <div class="panel__head"><span class="panel__title">Comprobante</span><span class="small muted">Cargado por el cliente en Mi BIMS</span></div>
+          <div class="panel__body">
+            ${l.comps.length > 1 ? `<div class="comp-tabs">${l.comps.map(x => `<button class="bims-btn ${x.id===c.id?'bims-btn--primary':'bims-btn--default'} bims-btn--sm" data-comp="${x.id}">Comprobante ${x.id}${x.estado==="parcial"?" · parcial":x.estado==="revision"?" · a validar":""}</button>`).join("")}</div>` : ""}
+            ${receipt(c)}
+          </div>
+        </div>
+        <div style="min-width:0">
+          ${montoPanel(l)}
+          ${mine ? verifyPanel(l) : l.estado === "revision" ? "" : resultPanel(l)}
         </div>
       </div>
 
-      <div class="panel"><div class="panel__body">
-        <b>Items</b>
-        <div class="bims-table-wrap" style="margin-top:10px"><table class="bims-table tabnum">
-          <thead><tr><th>Concepto</th><th>Sub-Total</th></tr></thead>
-          <tbody>${l.items.map(i => `<tr><td>${i[0]}</td><td class="num">${gs(i[1])}</td></tr>`).join("")}
-          <tr class="is-total is-total-caps"><td>Total a pagar</td><td>${gs(total(l))}</td></tr></tbody></table></div>
-      </div></div>
+      <div class="panel" style="margin-top:18px">
+        <div class="panel__head"><span class="panel__title">Actividad</span><span class="small muted">Trazabilidad para Administración</span></div>
+        <div class="panel__body"><ul class="timeline">${l.log.slice().reverse().map(([f, t]) => `<li><span>${f}</span><span>${esc(t)}</span></li>`).join("")}</ul></div>
+      </div>
     </div>`;
+  if (!PREVIEW) { const ps = $("#previewSplit"); if (ps) ps.remove(); }
+}
+
+
+/* ---------- Variante sin vista previa ---------- */
+const FILEINFO = n => ({ size: (180 + (n * 37) % 300) + " KB" });
+function filesPanel(l) {
+  return `<div class="panel" style="margin-bottom:18px"><!-- NUEVO: no validado contra prod -->
+    <div class="panel__head"><span class="panel__title">Comprobante${l.comps.length>1?"s":""}</span><span class="small muted">Cargado por el cliente en Mi BIMS</span></div>
+    <div class="panel__body" style="padding:0">
+      ${l.comps.slice().reverse().map(c => {
+        const pdf = /\.pdf$/i.test(c.archivo);
+        return `<div style="display:flex;align-items:center;gap:12px;padding:12px 15px;border-bottom:1px solid var(--bims-border)">
+          <svg width="28" height="34" viewBox="0 0 28 34" aria-hidden="true"><path d="M2 1h17l7 7v25H2z" fill="#fff" stroke="#b9c6cc" stroke-width="1.5"/><path d="M19 1v7h7" fill="none" stroke="#b9c6cc" stroke-width="1.5"/><rect x="0" y="18" width="20" height="10" rx="1" fill="${pdf?'#c9302c':'#3a78d0'}"/><text x="10" y="25.5" text-anchor="middle" font-size="7" font-family="Arial" font-weight="700" fill="#fff">${pdf?'PDF':'IMG'}</text></svg>
+          <div style="flex:1;min-width:0">
+            <div style="overflow-wrap:anywhere"><b>${esc(c.archivo)}</b>${l.comps.length>1?` <span class="small muted">· Comprobante ${c.id}${c.estado==="parcial"?" (parcial)":c.estado==="revision"?" (a validar)":""}</span>`:""}</div>
+            <div class="small muted">${FILEINFO(l.n + c.id).size} · cargado el ${c.cargado}</div>
+          </div>
+          <button class="bims-btn bims-btn--default bims-btn--sm" data-file="${c.id}">Abrir comprobante</button>
+        </div>`; }).join("")}
+    </div></div>`;
+}
+function openFile(id) {
+  const l = get(view.n), c = l.comps.find(x => x.id === id);
+  openModal(`<div class="bims-modal__head">${esc(c.archivo)}</div>
+    <div class="bims-modal__body">${receipt(c)}<div class="hint" style="margin-top:8px">En el producto se abre en una pestaña nueva. Acá se simula con un modal.</div></div>
+    <div class="bims-modal__foot"><button class="bims-btn bims-btn--default bims-btn--auto" data-close>Cerrar</button></div>`);
 }
 
 /* ---------- Modales ---------- */
 function openModal(h) { $("#overlay").innerHTML = `<div class="bims-modal-backdrop" data-close-bg><div class="bims-modal" role="dialog" aria-modal="true">${h}</div></div>`; }
 function closeModal() { $("#overlay").innerHTML = ""; }
-const foot = (ok, label) => `<div class="bims-modal__foot"><button class="bims-btn bims-btn--default bims-btn--auto" data-close>Cancelar</button><button class="bims-btn bims-btn--primary bims-btn--auto" ${ok}>${label}</button></div>`;
+function openReject() {
+  const l = get(view.n);
+  const def = dupOf(draft.op, l.n) ? 3 : 0;
+  openModal(`<div class="bims-modal__head">Rechazar pago</div>
+    <div class="bims-modal__body">
+      <div class="bims-field"><label class="bims-label" for="r-motivo">Motivo</label>
+        <select id="r-motivo" class="bims-input">${MOTIVOS.map((m,i) => `<option value="${i}" ${i===def?"selected":""}>${m}</option>`).join("")}</select>
+        <div class="hint">Le enviamos el motivo al cliente por mail para que vuelva a cargar el comprobante.</div></div>
+    </div>
+    <div class="bims-modal__foot"><button class="bims-btn bims-btn--default bims-btn--auto" data-close>Cancelar</button><button class="bims-btn bims-btn--primary bims-btn--auto" data-ok-rechazar>Rechazar pago</button></div>`);
+}
+function openProrroga() {
+  const l = get(view.n), m = parseM(draft.monto), esp = aValidar(l);
+  openModal(`<div class="bims-modal__head">Aplicar prórroga parcial</div>
+    <div class="bims-modal__body tabnum">
+      <div class="kv"><span>Monto a validar</span><span>Gs. ${gs(esp)}</span></div>
+      <div class="kv"><span>Recibido</span><span>Gs. ${gs(m)}</span></div>
+      <div class="kv"><span><b>Diferencia a transferir</b></span><b class="diff">Gs. ${gs(esp - m)}</b></div>
+      <div class="alert alert--info" style="margin:12px 0 0">La cuenta queda activa hasta el 12-10-2026. Le enviamos al cliente el mail de pago incompleto con la diferencia y los datos de la cuenta.</div>
+    </div>
+    <div class="bims-modal__foot"><button class="bims-btn bims-btn--default bims-btn--auto" data-close>Cancelar</button><button class="bims-btn bims-btn--primary bims-btn--auto" data-ok-prorroga>Aplicar prórroga</button></div>`);
+}
 function toast(t, b) {
   $("#toastHost").innerHTML = `<div class="toast" role="status"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--st-ok-fg)" stroke-width="3"><path d="m5 12 5 5 9-10"/></svg><div><b>${t}</b><span class="small muted">${b}</span></div></div>`;
   clearTimeout(toast.t); toast.t = setTimeout(() => $("#toastHost").innerHTML = "", 4500);
 }
-function resolve(l, msg, sub) { l.estado = "resuelto"; closeModal(); view = { name:"list" }; render(); toast(msg, sub); }
-function render() { (function(){ if ($("#protoSwitch")) return; const sw = document.createElement("div"); sw.id = "protoSwitch"; sw.className = "proto-switch"; sw.innerHTML = '<b>Opción:</b><a href="index.html#con-preview">A · Con vista previa del comprobante</a><a href="index.html#sin-preview">B · Sin vista previa</a><span class="is-on" style="padding:4px 10px;border:1px solid;border-radius:2px">C · Solo PRD, bajo costo</span>'; document.body.prepend(sw); })(); renderBell(); renderSidebar(); view.name === "list" ? renderList() : renderDetail(); }
+const back = () => { view = { name:"list", estado:view.estado || "todos", filtro:view.filtro || "todos" }; render(); };
 
+function renderSwitch() {
+  let sw = $("#protoSwitch");
+  if (!sw) { sw = document.createElement("div"); sw.id = "protoSwitch"; sw.className = "proto-switch"; document.body.prepend(sw); }
+  sw.innerHTML = `<b>Opción:</b><button class="${PREVIEW?'is-on':''}" data-preview="1">A · Con vista previa del comprobante</button><button class="${!PREVIEW?'is-on':''}" data-preview="0">B · Sin vista previa</button>`;
+}
+function render() { renderSwitch(); renderSidebar(); renderBell(); view.name === "list" ? renderList() : renderDetail(); }
+function rerenderKeep(id) { const el = $("#"+id), pos = el && el.selectionStart; render(); const n = $("#"+id); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (_) {} } }
+
+/* ---------- Eventos ---------- */
 document.addEventListener("click", e => {
-  
-  const el = e.target.closest("[data-bell],[data-open],[data-back],[data-asignar],[data-file],[data-aprobar],[data-prorroga],[data-rechazar],[data-close],[data-close-bg],[data-ok-aprobar],[data-ok-prorroga],[data-ok-rechazar]");
-  if (!el) return;
+  const pv = e.target.closest("[data-preview]");
+  if (pv) { PREVIEW = pv.dataset.preview === "1"; try { history.replaceState(null, "", PREVIEW ? "#con-preview" : "#sin-preview"); } catch (_) {} render(); return; }
+  const el = e.target.closest("[data-bell],[data-estado],[data-filtro],[data-open],[data-back],[data-tomar],[data-adic],[data-comp],[data-rechazar],[data-prorroga],[data-close],[data-close-bg],[data-ok-rechazar],[data-ok-prorroga],[data-file]");
+  if (!el) { if (notifOpen && !e.target.closest("#notif")) { notifOpen = false; renderBell(); } return; }
   if (el.matches("a")) e.preventDefault();
   const d = el.dataset;
   if (d.closeBg !== undefined && e.target !== el) return;
-  const l = view.n ? get(view.n) : null;
-  if (d.bell || d.back !== undefined) { view = { name:"list" }; render(); }
-  else if (d.asignar) { e.stopPropagation(); const x = get(+d.asignar); x.asignado = ME; view = { name:"detail", n:x.n }; render(); toast("Te asignaste el comprobante", `Liquidación #${x.n}`); }
-  else if (d.open) { view = { name:"detail", n:+d.open }; render(); }
-  else if (d.file !== undefined) {
-    openModal(`<div class="bims-modal__head">${esc(l.archivo)}</div><div class="bims-modal__body"><div class="viewer" style="min-height:220px"><div class="receipt tabnum"><div class="receipt__t">Transferencia enviada</div><div class="receipt__amt">Gs. ${gs(l.realMonto ?? aValidar(l))}</div><div class="receipt__row"><span>Cuenta destino</span><span>Sudameris · 15-406229-0</span></div></div></div><div class="hint" style="margin-top:8px">En el producto se abre en una pestaña nueva. Acá se simula con un modal.</div></div><div class="bims-modal__foot"><button class="bims-btn bims-btn--default bims-btn--auto" data-close>Cerrar</button></div>`);
-  }
-  else if (d.aprobar !== undefined) openModal(`<div class="bims-modal__head">Aprobar pago</div><div class="bims-modal__body">Se renueva la suscripción de ${esc(l.razon)} y le enviamos la factura electrónica por mail.<div class="hint">Confirmá que el comprobante sea por Gs. ${gs(aValidar(l))}.</div></div>` + foot("data-ok-aprobar", "Aprobar pago"));
-  else if (d.prorroga !== undefined) openModal(`<div class="bims-modal__head">Aplicar prórroga parcial</div><div class="bims-modal__body">
-      <div class="bims-field"><label class="bims-label" for="p-monto">Monto recibido</label>
-        <div class="bims-input-group"><input id="p-monto" class="bims-input tabnum" style="text-align:right" inputmode="numeric" placeholder="0"><span class="bims-input-group__addon small">Gs.</span></div>
-        <div class="hint">Monto a validar: Gs. ${gs(aValidar(l))}. La cuenta queda activa 7 días más y le enviamos al cliente la diferencia a transferir.</div></div>
-    </div>` + foot("data-ok-prorroga", "Aplicar prórroga"));
-  else if (d.rechazar !== undefined) openModal(`<div class="bims-modal__head">Rechazar pago</div><div class="bims-modal__body">
-      <div class="bims-field"><label class="bims-label" for="r-motivo">Motivo</label>
-        <textarea id="r-motivo" class="bims-input" placeholder="Ej.: comprobante ilegible, transferencia no acreditada"></textarea>
-        <div class="hint">Le enviamos el motivo al cliente para que vuelva a adjuntar el comprobante.</div></div>
-    </div>` + foot("data-ok-rechazar", "Rechazar pago"));
+  if (d.bell) { notifOpen = !notifOpen; renderBell(); }
+  else if (d.estado) { view.estado = d.estado; if (d.estado !== "todos" && d.estado !== "revision") view.filtro = "todos"; render(); }
+  else if (d.filtro) { view.filtro = d.filtro; if (d.filtro !== "todos" && !["todos","revision"].includes(view.estado)) view.estado = "todos"; render(); }
+  else if (d.open) open(+d.open);
+  else if (d.back !== undefined) back();
+  else if (d.tomar !== undefined) { tomar(get(view.n)); render(); toast("Te asignaste el caso", "Los demás agentes lo ven asignado a vos."); }
+  else if (d.adic !== undefined) { showAdic = !showAdic; render(); }
+  else if (d.file) openFile(+d.file);
+  else if (d.comp) { compSel = +d.comp; render(); }
+  else if (d.rechazar !== undefined) openReject();
+  else if (d.prorroga !== undefined) openProrroga();
   else if (d.close !== undefined || d.closeBg !== undefined) closeModal();
-  else if (d.okAprobar !== undefined) resolve(l, `Aprobaste el pago de la liquidación #${l.n}`, "Renovamos la suscripción y le enviamos la factura al cliente.");
-  else if (d.okProrroga !== undefined) {
-    const m = parseInt(($("#p-monto").value || "").replace(/\D/g, ""), 10);
-    if (!m || m >= aValidar(l)) { $("#p-monto").focus(); $("#p-monto").style.borderColor = "var(--st-err-fg)"; return; }
-    resolve(l, `Aplicaste la prórroga parcial a la liquidación #${l.n}`, `Le pedimos al cliente que transfiera Gs. ${gs(aValidar(l) - m)}.`);
-  }
   else if (d.okRechazar !== undefined) {
-    if (!$("#r-motivo").value.trim()) { $("#r-motivo").focus(); $("#r-motivo").style.borderColor = "var(--st-err-fg)"; return; }
-    resolve(l, `Rechazaste el pago de la liquidación #${l.n}`, "Le avisamos al cliente para que vuelva a adjuntar el comprobante.");
+    const l = get(view.n), motivo = MOTIVOS[+$("#r-motivo").value], t = now();
+    Object.assign(actual(l), { estado:"rechazado", motivo });
+    Object.assign(l, { estado:"rechazado", por:ME, el:t });
+    l.log.push([t, `${ME} rechazó el pago. Motivo: ${motivo}.`], [t, "Se envió al cliente el mail de pago rechazado."]);
+    closeModal(); back(); toast(`Rechazaste el pago de la liquidación #${l.n}`, "Le avisamos al cliente por mail para que vuelva a cargar el comprobante.");
+  }
+  else if (d.okProrroga !== undefined) {
+    const l = get(view.n), m = parseM(draft.monto), esp = aValidar(l), t = now();
+    Object.assign(actual(l), { estado:"parcial", recibido:m, por:ME, el:t });
+    Object.assign(l, { estado:"parcial", por:ME, el:t, limite:"12-10-2026", cuenta:"Activa por prórroga hasta 12-10-2026" });
+    l.log.push([t, `${ME} aplicó prórroga parcial de 7 días. Recibido Gs. ${gs(m)} de Gs. ${gs(esp)}.`], [t, "Se envió al cliente el mail de pago incompleto."]);
+    closeModal(); back(); toast(`Aplicaste la prórroga parcial a la liquidación #${l.n}`, `Le pedimos al cliente que transfiera Gs. ${gs(esp - m)}.`);
   }
 });
-document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+document.addEventListener("input", e => {
+  const id = e.target.id;
+  if (id === "v-monto") { draft.monto = e.target.value; rerenderKeep(id); }
+  if (id === "v-op") { draft.op = e.target.value; rerenderKeep(id); }
+  if (id === "v-obs") { draft.obs = e.target.value; const b = $("#verForm button[type=submit]"); if (b) b.disabled = !draft.obs.trim() || !draft.op.trim() || !draft.fecha; }
+});
+document.addEventListener("focusout", e => {
+  if (e.target.id === "v-monto") { const m = parseM(draft.monto); if (m !== null) { draft.monto = gs(m); e.target.value = draft.monto; } }
+});
+document.addEventListener("change", e => { if (e.target.id === "v-fecha") { draft.fecha = e.target.value; render(); } });
+document.addEventListener("submit", e => {
+  if (e.target.id !== "verForm") return;
+  e.preventDefault();
+  const l = get(view.n), m = parseM(draft.monto), t = now();
+  Object.assign(actual(l), { estado:"aprobado", recibido:m, op:draft.op });
+  actual(l).r.op = draft.op.trim() || actual(l).r.op;
+  Object.assign(l, { estado:"aprobado", por:ME, el:t });
+  l.log.push([t, `${ME} aprobó el pago por Gs. ${gs(m)}.`], [t, "Se renovó la suscripción y se envió la factura electrónica al cliente."]);
+  back(); toast(`Aprobaste el pago de la liquidación #${l.n}`, "Renovamos la suscripción y le enviamos la factura electrónica al cliente.");
+});
+window.addEventListener("hashchange", () => { PREVIEW = location.hash !== "#sin-preview"; render(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { closeModal(); notifOpen = false; renderBell(); } });
+
+/* Abrir un caso libre lo muestra con "Asignarme"; abrir uno propio permite validar */
 render();
 </script>
 
