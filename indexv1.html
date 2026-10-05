@@ -554,6 +554,7 @@ textarea.bims-input { height:auto; min-height:92px; resize:vertical; line-height
 .bims-sidebar__item[data-tab] { display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .bims-sidebar__item[data-tab] .count { float:none; flex-shrink:0; }
 @media (max-width:720px) { .timeline li { grid-template-columns:minmax(0,1fr); gap:2px; } }
+/* Selector de opciones del proto (no es parte del producto) */
 .proto-switch { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 16px; background:#2b2f33; color:#fff; font-size:var(--fs-sm); }
 .proto-switch button { background:transparent; color:#cfd6db; border:1px solid #5a6268; border-radius:var(--radius-sm); padding:4px 10px; font:inherit; cursor:pointer; }
 .proto-switch button.is-on { background:#fff; color:#2b2f33; border-color:#fff; }
@@ -665,7 +666,7 @@ const LIQS = [
 const MOTIVOS = ["Comprobante ilegible", "Transferencia no acreditada en la cuenta", "Transferencia a otra cuenta", "Comprobante ya usado en otro pago", "Otro motivo"];
 
 /* ---------- Estado ---------- */
-let view = { name:"list", estado:"todos", filtro:"todos" };
+let view = { name:"list", tab:"revision", filtro:"todos" };
 let draft = null, showAdic = false, compSel = null, notifOpen = false;
 
 /* ---------- Utilidades ---------- */
@@ -710,70 +711,58 @@ function renderBell() {
 function renderSidebar() {
   const sb = $("#sidebar");
   if (view.name === "list") {
-    sb.innerHTML = `<a class="bims-sidebar__item is-active" href="#">Listar pagos a validar</a>`;
+    const it = (t, label) => `<a class="bims-sidebar__item ${view.tab===t?'is-active':''}" href="#" data-tab="${t}">${label}<span class="count">${count(t)}</span></a>`;
+    sb.innerHTML = `<div class="bims-sidebar__sep">Validación de pagos</div>` + it("revision","En revisión") + it("parcial","Esperando diferencia") + it("aprobado","Aprobados") + it("rechazado","Rechazados");
   } else {
     sb.innerHTML = `<a class="bims-sidebar__item" href="#" data-back>‹ Volver a la bandeja</a><a class="bims-sidebar__item is-active" href="#">Validar pago</a><a class="bims-sidebar__item" href="#">Ver liquidación</a><a class="bims-sidebar__item" href="#">Ver abonado</a>`;
   }
 }
 
 /* ---------- Bandeja ---------- */
-const pd = t => { const m = /(\d\d)-(\d\d)-(\d{4})(?: (\d\d):(\d\d))?/.exec(t || ""); return m ? new Date(+m[3], m[2]-1, +m[1], +(m[4]||23), +(m[5]||59)).getTime() : 0; };
-const ORDEN = { revision:0, parcial:1, aprobado:2, rechazado:2 };
-function sortRows(rows) {
-  return rows.slice().sort((x, y) => ORDEN[x.estado] - ORDEN[y.estado]
-    || (ORDEN[x.estado] < 2 ? pd(x.limite) - pd(y.limite) : pd(y.el) - pd(x.el)));
-}
 function renderList() {
   $("#crumb").textContent = "Validación de pagos";
-  let rows = LIQS.slice();
-  if (view.estado !== "todos") rows = rows.filter(l => l.estado === view.estado);
-  if (view.filtro === "mios") rows = rows.filter(l => l.tomado === ME && l.estado === "revision");
-  if (view.filtro === "libres") rows = rows.filter(l => !l.tomado && l.estado === "revision");
-  rows = sortRows(rows);
-  const nLib = sinTomar().length, nMio = LIQS.filter(l => l.estado==="revision" && l.tomado===ME).length;
-  const est = (k, label, n) => `<button class="${view.estado===k?'is-active':''}" data-estado="${k}">${label}${n!=null?` (${n})`:""}</button>`;
+  const rev = view.tab === "revision";
+  let rows = LIQS.filter(l => l.estado === view.tab);
+  if (view.filtro === "mios") rows = rows.filter(l => l.tomado === ME);
+  if (view.filtro === "libres") rows = rows.filter(l => !l.tomado);
+  const titles = { revision:"Pagos en revisión", parcial:"Esperando diferencia", aprobado:"Pagos aprobados", rechazado:"Pagos rechazados" };
+  const head = rev
+    ? `<th>Liquidación</th><th>Comprobante cargado</th><th>Validar antes del</th><th>Abonado SaaS</th><th>Razón Social</th><th>Plan</th><th>Monto a Validar</th><th>Asignado a</th><th></th>`
+    : view.tab === "parcial"
+    ? `<th>Liquidación</th><th>Abonado SaaS</th><th>Razón Social</th><th>Recibido</th><th>Diferencia</th><th>Prórroga hasta</th><th>Aplicada por</th><th>Estado</th>`
+    : `<th>Liquidación</th><th>Abonado SaaS</th><th>Razón Social</th><th>Monto</th><th>Resuelto por</th><th>Estado</th>`;
   const row = l => {
-    const open = l.estado === "revision" || l.estado === "parcial";
-    const c = actual(l);
-    const limite = l.estado === "revision"
-      ? `${l.limite}<div class="small ${l.vence==='hoy'?'due':'muted'}">${l.vence==='hoy'?'Vence hoy':l.vence}</div>`
-      : l.estado === "parcial" ? `${l.limite}<div class="small muted">fin de la prórroga</div>` : '<span class="muted">—</span>';
-    const monto = l.estado === "revision" ? gs(aValidar(l))
-      : l.estado === "parcial" ? `<span class="diff">${gs(aValidar(l))}</span><div class="small muted">diferencia</div>`
-      : gs(c.recibido ?? c.r.monto);
-    const quien = l.estado === "revision"
-      ? (l.tomado ? esc(l.tomado) : '<span class="muted">Sin asignar</span>')
-      : `${esc(l.por)}<div class="small muted">${l.el}</div>`;
-    const act = l.estado === "revision"
-      ? `<button class="bims-btn ${l.tomado===ME?'bims-btn--primary':'bims-btn--default'} bims-btn--sm" data-open="${l.n}">${!l.tomado ? "Asignarme" : l.tomado===ME ? "Validar" : "Ver"}</button>`
-      : `<button class="bims-btn bims-btn--default bims-btn--sm" data-open="${l.n}">Ver</button>`;
-    return `<tr class="is-row" data-open="${l.n}">
-      <td class="center"><a href="#" data-open="${l.n}">#${l.n}</a></td>
-      <td class="center">${estadoBadge(l)}</td>
-      <td>${c.cargado}${l.comps.length > 1 ? `<div class="small muted">Comprobante ${c.id}${l.estado==="revision"?" · diferencia":""}</div>` : ""}</td>
-      <td>${limite}</td>
-      <td>${esc(l.razon)}<div class="small"><a href="#">${l.abonado}</a></div></td><td>${l.plan}<div class="small muted">${l.ciclo}</div></td>
-      <td class="num">${monto}</td>
-      <td>${quien}</td><td class="center">${act}</td></tr>`;
+    const pre = `<td class="center"><a href="#" data-open="${l.n}">#${l.n}</a></td>`;
+    if (rev) {
+      const c = actual(l);
+      const act = `<button class="bims-btn ${l.tomado===ME?'bims-btn--primary':'bims-btn--default'} bims-btn--sm" data-open="${l.n}">${!l.tomado ? "Asignarme" : l.tomado===ME ? "Validar" : "Ver"}</button>`;
+      return `<tr class="is-row" data-open="${l.n}">${pre}
+        <td>${c.cargado}${l.comps.length > 1 ? `<div class="small muted">Comprobante ${c.id} · diferencia</div>` : ""}</td>
+        <td>${l.limite}<div class="small ${l.vence==='hoy'?'due':'muted'}">${l.vence==='hoy'?'Vence hoy':l.vence}</div></td>
+        <td><a href="#">${l.abonado}</a></td><td>${esc(l.razon)}</td><td>${l.plan}<div class="small muted">${l.ciclo}</div></td>
+        <td class="num">${gs(aValidar(l))}</td>
+        <td>${l.tomado ? esc(l.tomado) : '<span class="muted">Sin asignar</span>'}</td><td class="center">${act}</td></tr>`;
+    }
+    if (view.tab === "parcial") {
+      return `<tr class="is-row" data-open="${l.n}">${pre}<td><a href="#">${l.abonado}</a></td><td>${esc(l.razon)}</td>
+        <td class="num">${gs(recibidoPrevio(l))}</td><td class="num diff">${gs(aValidar(l))}</td><td class="center">${l.limite}</td>
+        <td>${esc(l.por)}<div class="small muted">${l.el}</div></td><td class="center">${estadoBadge(l)}</td></tr>`;
+    }
+    return `<tr class="is-row" data-open="${l.n}">${pre}<td><a href="#">${l.abonado}</a></td><td>${esc(l.razon)}</td>
+      <td class="num">${gs(actual(l).recibido ?? actual(l).r.monto)}</td><td>${esc(l.por)}<div class="small muted">${l.el}</div></td><td class="center">${estadoBadge(l)}</td></tr>`;
   };
+  const nLib = sinTomar().length, nMio = LIQS.filter(l => l.estado==="revision" && l.tomado===ME).length;
   $("#main").innerHTML = `
-    <div class="bims-page-header"><h1 class="bims-page-header__title">Validación de pagos</h1>
-      <div class="bims-page-header__tools"><div class="bims-btn-group">
+    <div class="bims-page-header"><h1 class="bims-page-header__title">${titles[view.tab]}</h1>
+      ${rev ? `<div class="bims-page-header__tools"><div class="bims-btn-group">
         <button class="${view.filtro==='todos'?'is-active':''}" data-filtro="todos">Todos</button>
         <button class="${view.filtro==='libres'?'is-active':''}" data-filtro="libres">Sin asignar (${nLib})</button>
         <button class="${view.filtro==='mios'?'is-active':''}" data-filtro="mios">Asignados a mí (${nMio})</button>
-      </div></div></div>
+      </div></div>` : ""}</div>
     <div class="bims-page-content">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        <span class="small muted">Estado</span>
-        <div class="bims-btn-group" style="flex-wrap:wrap">
-          ${est("todos","Todos")}${est("revision","En revisión",count("revision"))}${est("parcial","Esperando diferencia",count("parcial"))}${est("aprobado","Aprobados",count("aprobado"))}${est("rechazado","Rechazados",count("rechazado"))}
-        </div>
-      </div>
-      ${rows.length ? `<div class="bims-table-wrap"><table class="bims-table tabnum"><thead><tr>
-          <th>Liquidación</th><th>Estado</th><th>Comprobante cargado</th><th>Validar antes del</th><th>Cliente</th><th>Plan</th><th>Monto a Validar</th><th>Asignado a</th><th></th>
-        </tr></thead><tbody>${rows.map(row).join("")}</tbody></table></div>`
-        : `<div class="panel"><div class="panel__body muted" style="text-align:center;padding:40px 15px">No hay pagos con estos filtros.</div></div>`}
+      <div class="mobile-nav">${["revision","parcial","aprobado","rechazado"].map(t => `<button class="bims-btn bims-btn--default bims-btn--sm" data-tab="${t}">${titles[t]} (${count(t)})</button>`).join("")}</div>
+      ${rows.length ? `<div class="bims-table-wrap"><table class="bims-table tabnum"><thead><tr>${head}</tr></thead><tbody>${rows.map(row).join("")}</tbody></table></div>`
+        : `<div class="panel"><div class="panel__body muted" style="text-align:center;padding:40px 15px">No hay pagos en esta vista.</div></div>`}
     </div>`;
 }
 
@@ -976,7 +965,7 @@ function toast(t, b) {
   $("#toastHost").innerHTML = `<div class="toast" role="status"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--st-ok-fg)" stroke-width="3"><path d="m5 12 5 5 9-10"/></svg><div><b>${t}</b><span class="small muted">${b}</span></div></div>`;
   clearTimeout(toast.t); toast.t = setTimeout(() => $("#toastHost").innerHTML = "", 4500);
 }
-const back = () => { view = { name:"list", estado:view.estado || "todos", filtro:view.filtro || "todos" }; render(); };
+const back = () => { view = { name:"list", tab:"revision", filtro:"todos" }; render(); };
 
 function renderSwitch() {
   let sw = $("#protoSwitch");
@@ -990,14 +979,14 @@ function rerenderKeep(id) { const el = $("#"+id), pos = el && el.selectionStart;
 document.addEventListener("click", e => {
   const pv = e.target.closest("[data-preview]");
   if (pv) { PREVIEW = pv.dataset.preview === "1"; try { history.replaceState(null, "", PREVIEW ? "#con-preview" : "#sin-preview"); } catch (_) {} render(); return; }
-  const el = e.target.closest("[data-bell],[data-estado],[data-filtro],[data-open],[data-back],[data-tomar],[data-adic],[data-comp],[data-rechazar],[data-prorroga],[data-close],[data-close-bg],[data-ok-rechazar],[data-ok-prorroga],[data-file]");
+  const el = e.target.closest("[data-bell],[data-tab],[data-filtro],[data-open],[data-back],[data-tomar],[data-adic],[data-comp],[data-rechazar],[data-prorroga],[data-close],[data-close-bg],[data-ok-rechazar],[data-ok-prorroga],[data-file]");
   if (!el) { if (notifOpen && !e.target.closest("#notif")) { notifOpen = false; renderBell(); } return; }
   if (el.matches("a")) e.preventDefault();
   const d = el.dataset;
   if (d.closeBg !== undefined && e.target !== el) return;
   if (d.bell) { notifOpen = !notifOpen; renderBell(); }
-  else if (d.estado) { view.estado = d.estado; if (d.estado !== "todos" && d.estado !== "revision") view.filtro = "todos"; render(); }
-  else if (d.filtro) { view.filtro = d.filtro; if (d.filtro !== "todos" && !["todos","revision"].includes(view.estado)) view.estado = "todos"; render(); }
+  else if (d.tab) { view = { name:"list", tab:d.tab, filtro:"todos" }; render(); }
+  else if (d.filtro) { view.filtro = d.filtro; render(); }
   else if (d.open) open(+d.open);
   else if (d.back !== undefined) back();
   else if (d.tomar !== undefined) { tomar(get(view.n)); render(); toast("Te asignaste el caso", "Los demás agentes lo ven asignado a vos."); }
