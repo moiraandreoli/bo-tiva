@@ -691,7 +691,7 @@ function toast(t, b) {
   clearTimeout(toast.t); toast.t = setTimeout(() => $("#toastHost").innerHTML = "", 4500);
 }
 function resolve(l, msg, sub) { l.estado = "resuelto"; closeModal(); view = { name:"list" }; render(); toast(msg, sub); }
-function render() { (function(){ if ($("#protoSwitch")) return; const sw = document.createElement("div"); sw.id = "protoSwitch"; sw.className = "proto-switch"; sw.innerHTML = '<b>Opción:</b><a href="index.html#con-preview">A · Con vista previa del comprobante</a><a href="index.html#sin-preview">B · Sin vista previa</a><span class="is-on" style="padding:4px 10px;border:1px solid;border-radius:2px">C · Solo PRD, bajo costo</span>'; document.body.prepend(sw); })(); renderBell(); renderSidebar(); view.name === "list" ? renderList() : renderDetail(); }
+function render() { (function(){ if ($("#protoSwitch")) return; const sw = document.createElement("div"); sw.id = "protoSwitch"; sw.className = "proto-switch"; sw.innerHTML = '<b>Opción:</b><a href="indexv2.html#con-preview">A · Con vista previa del comprobante</a><a href="indexv2.html#sin-preview">B · Sin vista previa</a><span class="is-on" style="padding:4px 10px;border:1px solid;border-radius:2px">C · Solo PRD, bajo costo</span>'; document.body.prepend(sw); })(); renderBell(); renderSidebar(); view.name === "list" ? renderList() : renderDetail(); }
 
 document.addEventListener("click", e => {
   

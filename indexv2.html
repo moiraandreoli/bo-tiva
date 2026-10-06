@@ -557,6 +557,8 @@ textarea.bims-input { height:auto; min-height:92px; resize:vertical; line-height
 .proto-switch { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 16px; background:#2b2f33; color:#fff; font-size:var(--fs-sm); }
 .proto-switch button { background:transparent; color:#cfd6db; border:1px solid #5a6268; border-radius:var(--radius-sm); padding:4px 10px; font:inherit; cursor:pointer; }
 .proto-switch button.is-on { background:#fff; color:#2b2f33; border-color:#fff; }
+.proto-switch a { color:#cfd6db; border:1px solid #5a6268; border-radius:var(--radius-sm); padding:4px 10px; text-decoration:none; }
+.proto-switch a:hover { text-decoration:none; background:#3a3f44; }
 </style>
 </head>
 <body>
@@ -981,7 +983,7 @@ const back = () => { view = { name:"list", estado:view.estado || "todos", filtro
 function renderSwitch() {
   let sw = $("#protoSwitch");
   if (!sw) { sw = document.createElement("div"); sw.id = "protoSwitch"; sw.className = "proto-switch"; document.body.prepend(sw); }
-  sw.innerHTML = `<b>Opción:</b><button class="${PREVIEW?'is-on':''}" data-preview="1">A · Con vista previa del comprobante</button><button class="${!PREVIEW?'is-on':''}" data-preview="0">B · Sin vista previa</button>`;
+  sw.innerHTML = `<b>Opción:</b><button class="${PREVIEW?'is-on':''}" data-preview="1">A · Con vista previa del comprobante</button><button class="${!PREVIEW?'is-on':''}" data-preview="0">B · Sin vista previa</button><a href="index.html">C · Solo PRD, bajo costo</a>`;
 }
 function render() { renderSwitch(); renderSidebar(); renderBell(); view.name === "list" ? renderList() : renderDetail(); }
 function rerenderKeep(id) { const el = $("#"+id), pos = el && el.selectionStart; render(); const n = $("#"+id); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (_) {} } }
