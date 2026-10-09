@@ -559,6 +559,19 @@ textarea.bims-input { height:auto; min-height:92px; resize:vertical; line-height
 .proto-switch button.is-on { background:#fff; color:#2b2f33; border-color:#fff; }
 .proto-switch a { color:#cfd6db; border:1px solid #5a6268; border-radius:var(--radius-sm); padding:4px 10px; text-decoration:none; }
 .proto-switch a:hover { text-decoration:none; background:#3a3f44; }
+
+/* v4: devolución por pago de más + vencimiento del plazo de revisión. NUEVO: no validado contra prod */
+:root { --st-dev-bg:#ece6f6; --st-dev-fg:#5b3f8c; --st-dev-bd:#d9cdee; --venc:#c9302c; --hoy:#f0ad4e; }
+.st--dev { background:var(--st-dev-bg); color:var(--st-dev-fg); border-color:var(--st-dev-bd); }
+.alert--err { background:var(--st-err-bg); color:var(--st-err-fg); border-color:var(--st-err-bd); }
+.alert--bar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.pill { display:inline-block; padding:3px 7px; border-radius:var(--radius-pill); font-size:var(--fs-xs); line-height:12px; text-transform:uppercase; font-family:var(--bims-font-bold); font-weight:700; }
+.pill--venc { background:var(--venc); color:#fff; }
+.pill--hoy { background:var(--hoy); color:#4a3508; }
+.due-warn { color:var(--st-warn-fg); font-family:var(--bims-font-bold); font-weight:700; }
+.bims-table tbody tr.is-venc td { background:#fdf3f3; }
+.bims-table tbody tr.is-venc td:first-child { box-shadow:inset 4px 0 0 var(--venc); }
+.bims-table tbody tr.is-hoy td:first-child { box-shadow:inset 4px 0 0 var(--hoy); }
 </style>
 </head>
 <body>
@@ -604,6 +617,7 @@ textarea.bims-input { height:auto; min-height:92px; resize:vertical; line-height
 let PREVIEW = location.hash !== "#sin-preview";
 const ME = "Lucía Ferreira";
 const HOY = "05-10-2026";
+const AHORA = HOY + " 09:30"; // fecha y hora actual del proto
 const CUENTA = "Sudameris · Cta. Cte. 15-406229-0";
 
 /* ---------- Datos de ejemplo ---------- */
@@ -611,63 +625,75 @@ const A = (c, q, t, h) => ({ c, q, t, h }); // concepto, cantidad, tarifa diaria
 const C = (id, cargado, archivo, monto, fecha, banco, titular, op) => ({ id, cargado, archivo, r:{ monto, fecha, banco, titular, op }, estado:"revision" });
 
 const LIQS = [
+  { n:30470, abonado:"elestudiante", razon:"Librería El Estudiante", ruc:"3987412-7", rep:"Norma Giménez", plan:"Plan Básico", ciclo:"Mensual", planMonto:340000, cobertura:"30-09-2026 al 29-10-2026",
+    adicRango:"30-08-2026 al 29-09-2026", adic:[A("Usuarios",3,400,36000),A("Puntos de venta",1,1900,57000)],
+    cuenta:"Vencida · en gracia hasta 07-10-2026", limite:"02-10-2026 16:20",
+    comps:[C(1,"30-09-2026 16:20","transferencia_sept.jpg",433000,"30/09/2026","Banco Atlas","Norma Giménez","AT-88120477")],
+    estado:"revision", tomado:"Diego Ortiz",
+    log:[["30-09-2026 16:20","El cliente cargó el comprobante desde Mi BIMS."],["30-09-2026 16:20","Se aplicó el período de gracia de 7 días (cuenta vencida)."],["30-09-2026 16:20","Se notificó a Soporte por TIVA y por mail."],["01-10-2026 09:15","Diego Ortiz se asignó el caso."]] },
   { n:30514, abonado:"lomas11", razon:"HAY HIELO E.A.S.", ruc:"80098765-4", rep:"Ivan Amarilla", plan:"Plan Emprendedor", ciclo:"Mensual", planMonto:340000, cobertura:"05-10-2026 al 03-11-2026",
     adicRango:"01-09-2026 al 04-10-2026", adic:[A("Facturación electrónica",1,3000,81000),A("Usuarios",5,400,39600),A("Empresas",7,1100,207900),A("Puntos de venta",12,1900,570000),A("Establecimientos",8,1100,237600),A("Centros de producción",1,400,10800),A("Monedas",1,1100,29700),A("Cuentas de fondos",1,400,10800)],
-    cuenta:"Vencida · en gracia hasta 08-10-2026", limite:"05-10-2026 10:12", vence:"hoy",
+    cuenta:"Vencida · en gracia hasta 08-10-2026", limite:"05-10-2026 10:12",
     comps:[C(1,"01-10-2026 10:12","transferencia_hayhielo.png",1527400,"01/10/2026","Banco Continental","HAY HIELO E.A.S.","004612880")],
     estado:"revision", tomado:null,
     log:[["01-10-2026 10:12","El cliente cargó el comprobante desde Mi BIMS."],["01-10-2026 10:12","Se aplicó el período de gracia de 7 días (cuenta vencida)."],["01-10-2026 10:12","Se notificó a Soporte por TIVA y por mail."]] },
   { n:30475, abonado:"kiosko-central", razon:"Kiosko Central", ruc:"5123009-1", rep:"Rubén Aquino", plan:"Plan Básico", ciclo:"Mensual", planMonto:340000, cobertura:"28-09-2026 al 27-10-2026",
     adicRango:"28-08-2026 al 27-09-2026", adic:[A("Usuarios",4,400,48000),A("Puntos de venta",3,1900,171000),A("Facturación electrónica",1,3000,90000)],
-    cuenta:"Activa por prórroga hasta 05-10-2026", limite:"05-10-2026 23:59", vence:"hoy",
+    cuenta:"Activa por prórroga hasta 05-10-2026", limite:"05-10-2026 23:59",
     comps:[ Object.assign(C(1,"28-09-2026 11:37","transf_kiosko.jpg",500000,"28/09/2026","Banco Familiar","Rubén Aquino","55012987"), { estado:"parcial", recibido:500000, por:"Diego Ortiz", el:"28-09-2026 12:05" }),
             C(2,"05-10-2026 07:30","diferencia_kiosko.jpg",149000,"05/10/2026","Banco Familiar","Rubén Aquino","55019341") ],
     estado:"revision", tomado:null,
     log:[["28-09-2026 11:37","El cliente cargó el comprobante 1 desde Mi BIMS."],["28-09-2026 12:05","Diego Ortiz aplicó prórroga parcial de 7 días. Recibido Gs. 500.000 de Gs. 649.000."],["05-10-2026 07:30","El cliente cargó el comprobante 2 (diferencia)."],["05-10-2026 07:30","Se notificó a Soporte por TIVA y por mail."]] },
   { n:30502, abonado:"dbz", razon:"Mr. Cell", ruc:"50030805-4", rep:"Ronald Martinez", plan:"Plan Básico", ciclo:"Semestral (20% OFF)", planMonto:1632000, cobertura:"03-10-2026 al 01-04-2027",
     adicRango:"03-09-2026 al 02-10-2026", adic:[A("Empresas",4,1100,132000),A("Usuarios",3,400,36000)],
-    cuenta:"Activa hasta 03-10-2026", limite:"06-10-2026 18:40", vence:"mañana",
+    cuenta:"Activa hasta 03-10-2026", limite:"06-10-2026 18:40",
     comps:[C(1,"02-10-2026 18:40","comprobante.jpg",1800000,"02/10/2026","Banco Itaú","Mr. Cell","7790345521")],
     estado:"revision", tomado:"Diego Ortiz",
     log:[["02-10-2026 18:40","El cliente cargó el comprobante desde Mi BIMS."],["02-10-2026 18:40","Se notificó a Soporte por TIVA y por mail."],["05-10-2026 08:50","Diego Ortiz se asignó el caso."]] },
   { n:30498, abonado:"ferrelux", razon:"Ferretería Luxor S.A.", ruc:"80012345-6", rep:"Carla Duarte", plan:"Plan Pro", ciclo:"Mensual", planMonto:950000, cobertura:"04-10-2026 al 02-11-2026",
     adicRango:"04-09-2026 al 03-10-2026", adic:[A("Usuarios",10,400,120000),A("Puntos de venta",3,1900,171000)],
-    cuenta:"Vencida · en gracia hasta 11-10-2026", limite:"07-10-2026 09:00", vence:"en 2 días",
+    cuenta:"Vencida · en gracia hasta 11-10-2026", limite:"07-10-2026 09:00",
     comps:[C(1,"04-10-2026 11:15","pago_octubre.pdf",1000000,"04/10/2026","Banco GNB","Ferretería Luxor S.A.","00918273")],
     estado:"revision", tomado:null,
     log:[["04-10-2026 11:15","El cliente cargó el comprobante desde Mi BIMS."],["04-10-2026 11:15","Se aplicó el período de gracia de 7 días (cuenta vencida)."],["04-10-2026 11:15","Se notificó a Soporte por TIVA y por mail."]] },
   { n:30490, abonado:"lamodelo", razon:"Panadería La Modelo", ruc:"4455120-3", rep:"Hugo Cáceres", plan:"Plan Básico", ciclo:"Mensual", planMonto:340000, cobertura:"16-10-2026 al 14-11-2026",
     adicRango:"16-09-2026 al 04-10-2026", adic:[A("Usuarios",2,400,15200)],
-    cuenta:"Activa hasta 16-10-2026", limite:"07-10-2026 08:02", vence:"en 2 días",
+    cuenta:"Activa hasta 16-10-2026", limite:"07-10-2026 08:02",
     comps:[C(1,"05-10-2026 08:02","IMG_2291.jpg",340000,"16/08/2026","ueno bank","Hugo Cáceres","UE20260816-1177")],
     estado:"revision", tomado:null,
     log:[["05-10-2026 08:02","El cliente cargó el comprobante desde Mi BIMS."],["05-10-2026 08:02","Se notificó a Soporte por TIVA y por mail."]] },
   { n:30481, abonado:"agrorioverde", razon:"Agro Río Verde S.R.L.", ruc:"80098761-2", rep:"Marcos Villalba", plan:"Plan Empresa", ciclo:"Mensual", planMonto:1800000, cobertura:"15-10-2026 al 13-11-2026",
     adicRango:"15-09-2026 al 04-10-2026", adic:[A("Puntos de venta",10,1900,380000)],
-    cuenta:"Activa hasta 15-10-2026", limite:"07-10-2026 08:47", vence:"en 2 días",
+    cuenta:"Activa hasta 15-10-2026", limite:"07-10-2026 08:47",
     comps:[C(1,"05-10-2026 08:47","transf_agro.png",2300000,"05/10/2026","Visión Banco","Agro Río Verde S.R.L.","3309127")],
     estado:"revision", tomado:ME,
     log:[["05-10-2026 08:47","El cliente cargó el comprobante desde Mi BIMS."],["05-10-2026 08:47","Se notificó a Soporte por TIVA y por mail."],["05-10-2026 09:02","Lucía Ferreira se asignó el caso."]] },
   /* esperando diferencia */
   { n:30466, abonado:"kinesiosur", razon:"Kinesio Sur", ruc:"4981276-5", rep:"Paola Núñez", plan:"Plan Pro", ciclo:"Mensual", planMonto:950000, cobertura:"02-10-2026 al 31-10-2026",
-    adicRango:"02-09-2026 al 01-10-2026", adic:[A("Usuarios",6,400,72000)], cuenta:"Activa por prórroga hasta 09-10-2026", limite:"09-10-2026", vence:"en 4 días",
+    adicRango:"02-09-2026 al 01-10-2026", adic:[A("Usuarios",6,400,72000)], cuenta:"Activa por prórroga hasta 09-10-2026", limite:"09-10-2026",
     comps:[ Object.assign(C(1,"02-10-2026 10:14","comprobante.png",822000,"02/10/2026","Banco Continental","Kinesio Sur","004577001"), { estado:"parcial", recibido:822000, por:"Ana Benítez", el:"02-10-2026 10:40" }) ],
     estado:"parcial", tomado:"Ana Benítez", por:"Ana Benítez", el:"02-10-2026 10:40",
     log:[["02-10-2026 10:14","El cliente cargó el comprobante desde Mi BIMS."],["02-10-2026 10:40","Ana Benítez aplicó prórroga parcial de 7 días. Recibido Gs. 822.000 de Gs. 1.022.000."],["02-10-2026 10:40","Se envió al cliente el mail de pago incompleto."]] },
+  /* devolución pendiente (pago de más) */
+  { n:30460, abonado:"vetsanroque", razon:"Veterinaria San Roque", ruc:"80045512-9", rep:"Liz Paredes", plan:"Plan Básico", ciclo:"Mensual", planMonto:340000, cobertura:"03-10-2026 al 01-11-2026",
+    adicRango:"03-09-2026 al 02-10-2026", adic:[A("Usuarios",5,400,60000),A("Puntos de venta",2,1900,114000),A("Empresas",1,1100,26000)], cuenta:"Activa hasta 01-11-2026", limite:"05-10-2026",
+    comps:[ Object.assign(C(1,"03-10-2026 14:48","transferencia_vet.png",600000,"03/10/2026","Banco Basa","Veterinaria San Roque","BS-20417765"), { estado:"aprobado", recibido:600000 }) ],
+    estado:"devolucion", excedente:60000, tomado:"Ana Benítez", por:"Ana Benítez", el:"03-10-2026 15:20",
+    log:[["03-10-2026 14:48","El cliente cargó el comprobante desde Mi BIMS."],["03-10-2026 15:20","Ana Benítez aprobó el pago por Gs. 600.000."],["03-10-2026 15:20","Se renovó la suscripción y se envió la factura electrónica al cliente."],["03-10-2026 15:20","Se registró una devolución pendiente de Gs. 60.000 (pago de más)."],["03-10-2026 15:20","Se envió al cliente el mail de devolución."]] },
   /* historial */
   { n:30211, abonado:"lamodelo", razon:"Panadería La Modelo", ruc:"4455120-3", rep:"Hugo Cáceres", plan:"Plan Básico", ciclo:"Mensual", planMonto:340000, cobertura:"16-08-2026 al 14-09-2026",
-    adicRango:"—", adic:[], cuenta:"—", limite:"18-08-2026", vence:"",
+    adicRango:"—", adic:[], cuenta:"—", limite:"18-08-2026",
     comps:[ Object.assign(C(1,"16-08-2026 12:30","IMG_1980.jpg",340000,"16/08/2026","ueno bank","Hugo Cáceres","UE20260816-1177"), { estado:"aprobado", recibido:340000 }) ],
     estado:"aprobado", tomado:"Ana Benítez", por:"Ana Benítez", el:"16-08-2026 14:05", log:[["16-08-2026 14:05","Ana Benítez aprobó el pago. Factura 001-001-0004521."]] },
   { n:30455, abonado:"opticavision", razon:"Óptica Visión", ruc:"3322819-0", rep:"Sofía Rolón", plan:"Plan Básico", ciclo:"Mensual", planMonto:340000, cobertura:"15-09-2026 al 14-10-2026",
-    adicRango:"—", adic:[], cuenta:"Vencida", limite:"27-09-2026", vence:"",
+    adicRango:"—", adic:[], cuenta:"Vencida", limite:"27-09-2026",
     comps:[ Object.assign(C(1,"25-09-2026 15:02","foto.jpg",340000,"25/09/2026","Banco Familiar","Óptica Visión","—"), { estado:"rechazado", motivo:"Comprobante ilegible" }) ],
     estado:"rechazado", tomado:"Ana Benítez", por:"Ana Benítez", el:"25-09-2026 15:40", log:[["25-09-2026 15:40","Ana Benítez rechazó el pago. Motivo: Comprobante ilegible."]] },
 ];
 const MOTIVOS = ["Comprobante ilegible", "Transferencia no acreditada en la cuenta", "Transferencia a otra cuenta", "Comprobante ya usado en otro pago", "Otro motivo"];
 
 /* ---------- Estado ---------- */
-let view = { name:"list", estado:"todos", filtro:"todos" };
+let view = { name:"list", estado:"todos", filtro:"todos", urgentes:false };
 let draft = null, showAdic = false, compSel = null, notifOpen = false;
 
 /* ---------- Utilidades ---------- */
@@ -689,6 +715,7 @@ function dupOf(op, self) {
 }
 function estadoBadge(l) {
   return { revision:'<span class="st st--warn">En revisión</span>', parcial:'<span class="st st--info">Esperando diferencia</span>',
+           devolucion:'<span class="st st--dev">Devolución pendiente</span>',
            aprobado:'<span class="st st--ok">Pago aprobado</span>', rechazado:'<span class="st st--err">Pago rechazado</span>' }[l.estado];
 }
 const now = () => HOY + " 09:" + String(30 + Math.floor(Math.random() * 25)).padStart(2, "0");
@@ -720,7 +747,25 @@ function renderSidebar() {
 
 /* ---------- Bandeja ---------- */
 const pd = t => { const m = /(\d\d)-(\d\d)-(\d{4})(?: (\d\d):(\d\d))?/.exec(t || ""); return m ? new Date(+m[3], m[2]-1, +m[1], +(m[4]||23), +(m[5]||59)).getTime() : 0; };
-const ORDEN = { revision:0, parcial:1, aprobado:2, rechazado:2 };
+const dia = t => pd((t || "").slice(0, 10) + " 00:00");
+const dmy = iso => iso.split("-").reverse().join("-");
+const plural = (n, uno, muchos) => `${n} ${n === 1 ? uno : muchos}`;
+/* Plazo de revisión: solo aplica a pagos En revisión */
+function plazo(l) {
+  if (l.estado !== "revision") return null;
+  const dias = Math.round((dia(l.limite) - dia(HOY)) / 864e5);
+  const k = pd(l.limite) < pd(AHORA) ? "vencido" : dias === 0 ? "hoy" : dias === 1 ? "manana" : "resto";
+  return { k, dias, fecha:l.limite.slice(0, 10), hora:l.limite.slice(11) || "23:59",
+           hace: dias === 0 ? "venció hoy" : `hace ${plural(-dias, "día", "días")}` };
+}
+const urgente = l => { const p = plazo(l); return !!p && (p.k === "vencido" || p.k === "hoy"); };
+function plazoTag(p) {
+  return { vencido:`<span class="pill pill--venc">Vencido</span> <span class="due">${p.hace}</span>`,
+           hoy:`<span class="pill pill--hoy">Vence hoy</span> <span class="due-warn">a las ${p.hora}</span>`,
+           manana:`<span class="due-warn">Vence mañana</span>`,
+           resto:`<span class="muted">en ${plural(p.dias, "día", "días")}</span>` }[p.k];
+}
+const ORDEN = { revision:0, parcial:1, devolucion:2, aprobado:3, rechazado:3 };
 function sortRows(rows) {
   return rows.slice().sort((x, y) => ORDEN[x.estado] - ORDEN[y.estado]
     || (ORDEN[x.estado] < 2 ? pd(x.limite) - pd(y.limite) : pd(y.el) - pd(x.el)));
@@ -731,25 +776,31 @@ function renderList() {
   if (view.estado !== "todos") rows = rows.filter(l => l.estado === view.estado);
   if (view.filtro === "mios") rows = rows.filter(l => l.tomado === ME && l.estado === "revision");
   if (view.filtro === "libres") rows = rows.filter(l => !l.tomado && l.estado === "revision");
+  if (view.urgentes) rows = rows.filter(urgente);
   rows = sortRows(rows);
+  const nVenc = LIQS.filter(l => plazo(l)?.k === "vencido").length, nHoy = LIQS.filter(l => plazo(l)?.k === "hoy").length;
+  const partes = [];
+  if (nVenc) partes.push(`<b>${plural(nVenc, "pago", "pagos")} con plazo vencido</b>`);
+  if (nHoy) partes.push(nVenc ? `<b>${plural(nHoy, "vence", "vencen")} hoy</b>` : `<b>${plural(nHoy, "pago vence", "pagos vencen")} hoy</b>`);
+  const aviso = !partes.length ? "" : `<div class="alert ${nVenc ? "alert--err" : "alert--warn"} alert--bar"><span>${partes.join(" y ")}. ${nVenc + nHoy === 1 ? "Revisalo" : "Revisalos"} primero: si termina el período de gracia, se bloquea la cuenta del cliente.</span><button class="bims-btn bims-btn--default bims-btn--sm" data-urgentes>${view.urgentes ? "Ver todos" : "Ver solo estos"}</button></div>`;
   const nLib = sinTomar().length, nMio = LIQS.filter(l => l.estado==="revision" && l.tomado===ME).length;
   const est = (k, label, n) => `<button class="${view.estado===k?'is-active':''}" data-estado="${k}">${label}${n!=null?` (${n})`:""}</button>`;
   const row = l => {
-    const open = l.estado === "revision" || l.estado === "parcial";
-    const c = actual(l);
-    const limite = l.estado === "revision"
-      ? `${l.limite}<div class="small ${l.vence==='hoy'?'due':'muted'}">${l.vence==='hoy'?'Vence hoy':l.vence}</div>`
+    const c = actual(l), p = plazo(l);
+    const limite = p
+      ? `${l.limite}<div class="small">${plazoTag(p)}</div>`
       : l.estado === "parcial" ? `${l.limite}<div class="small muted">fin de la prórroga</div>` : '<span class="muted">—</span>';
     const monto = l.estado === "revision" ? gs(aValidar(l))
       : l.estado === "parcial" ? `<span class="diff">${gs(aValidar(l))}</span><div class="small muted">diferencia</div>`
-      : gs(c.recibido ?? c.r.monto);
+      : l.estado === "devolucion" ? `${gs(l.excedente)}<div class="small muted">a devolver</div>`
+      : gs((c.recibido ?? c.r.monto) - (l.dev ? l.dev.monto : 0));
     const quien = l.estado === "revision"
       ? (l.tomado ? esc(l.tomado) : '<span class="muted">Sin asignar</span>')
       : `${esc(l.por)}<div class="small muted">${l.el}</div>`;
     const act = l.estado === "revision"
       ? `<button class="bims-btn ${l.tomado===ME?'bims-btn--primary':'bims-btn--default'} bims-btn--sm" data-open="${l.n}">${!l.tomado ? "Asignarme" : l.tomado===ME ? "Validar" : "Ver"}</button>`
       : `<button class="bims-btn bims-btn--default bims-btn--sm" data-open="${l.n}">Ver</button>`;
-    return `<tr class="is-row" data-open="${l.n}">
+    return `<tr class="is-row${p?.k === "vencido" ? " is-venc" : p?.k === "hoy" ? " is-hoy" : ""}" data-open="${l.n}">
       <td class="center"><a href="#" data-open="${l.n}">#${l.n}</a></td>
       <td class="center">${estadoBadge(l)}</td>
       <td>${c.cargado}${l.comps.length > 1 ? `<div class="small muted">Comprobante ${c.id}${l.estado==="revision"?" · diferencia":""}</div>` : ""}</td>
@@ -769,9 +820,10 @@ function renderList() {
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
         <span class="small muted">Estado</span>
         <div class="bims-btn-group" style="flex-wrap:wrap">
-          ${est("todos","Todos")}${est("revision","En revisión",count("revision"))}${est("parcial","Esperando diferencia",count("parcial"))}${est("aprobado","Aprobados",count("aprobado"))}${est("rechazado","Rechazados",count("rechazado"))}
+          ${est("todos","Todos")}${est("revision","En revisión",count("revision"))}${est("parcial","Esperando diferencia",count("parcial"))}${est("devolucion","Devolución pendiente",count("devolucion"))}${est("aprobado","Aprobados",count("aprobado"))}${est("rechazado","Rechazados",count("rechazado"))}
         </div>
       </div>
+      ${aviso}
       ${rows.length ? `<div class="bims-table-wrap"><table class="bims-table tabnum"><thead><tr>
           <th>Liquidación</th><th>Estado</th><th>Comprobante cargado</th><th>Validar antes del</th><th>Cliente</th><th>Plan</th><th>Monto a Validar</th><th>Asignado a</th><th></th>
         </tr></thead><tbody>${rows.map(row).join("")}</tbody></table></div>`
@@ -783,7 +835,7 @@ function renderList() {
 function open(n) {
   const l = get(n);
   view = { ...view, name:"detail", n };
-  draft = { monto:"", op:"", fecha:"", obs:"" };
+  draft = { monto:"", op:"", fecha:"" };
   showAdic = false; compSel = actual(l).id; notifOpen = false;
   render();
 }
@@ -833,12 +885,12 @@ function verifyPanel(l) {
   if (dup) alert = `<div class="alert alert--warn">Este número de operación ya se usó en la <a href="#">liquidación #${dup.l.n}</a> (${dup.l.el.slice(0,10)}). Es probable que el cliente haya cargado un comprobante anterior. Rechazá el pago.</div>`;
   else if (has && diff === 0) alert = `<div class="alert alert--ok">El monto recibido coincide con el monto a validar.</div>`;
   else if (has && diff < 0) alert = `<div class="alert alert--warn">Recibido Gs. ${gs(m)} de Gs. ${gs(esperado)}. Faltan <b>Gs. ${gs(-diff)}</b>.<br>Con la prórroga parcial, la cuenta queda activa 7 días más (hasta el 12-10-2026) y le enviamos al cliente el saldo a transferir.</div>`;
-  else if (has && diff > 0) alert = `<div class="prd-gap"><b>Caso no definido en el PRD:</b> el monto recibido supera el monto a validar por Gs. ${gs(diff)}. En el proto se puede aprobar con una observación.</div>`;
+  else if (has && diff > 0) alert = `<div class="alert alert--info">Recibido Gs. ${gs(m)}: <b>Gs. ${gs(diff)} más</b> que el monto a validar. Al aprobar, registramos una devolución pendiente de Gs. ${gs(diff)} y le enviamos al cliente el mail de devolución.</div>`;
 
-  const okAprobar = filled && !dup && (diff === 0 || (diff > 0 && draft.obs.trim()));
+  const okAprobar = filled && !dup && diff >= 0;
   const okProrroga = filled && !dup && diff < 0;
   if (has && diff < 0 && !dup) primary = `<button type="button" class="bims-btn bims-btn--primary bims-btn--auto" data-prorroga ${okProrroga?"":"disabled"}>Aplicar prórroga parcial</button>`;
-  else primary = `<button type="submit" class="bims-btn bims-btn--primary bims-btn--auto" ${okAprobar?"":"disabled"}>Aprobar pago</button>`;
+  else primary = `<button type="submit" class="bims-btn bims-btn--primary bims-btn--auto" ${okAprobar?"":"disabled"}>${diff > 0 && !dup ? "Aprobar y registrar devolución" : "Aprobar pago"}</button>`;
 
   return `<form class="panel" id="verForm" novalidate>
     <div class="panel__head"><span class="panel__title">Validación</span><span class="small muted">Asignado a ${esc(l.tomado)}</span></div>
@@ -853,7 +905,6 @@ function verifyPanel(l) {
       <div class="bims-field"><label class="bims-label" for="v-op">Nro. de operación <span class="req">*</span></label>
         <input id="v-op" class="bims-input" value="${esc(draft.op)}" autocomplete="off"></div>
       ${alert}
-      ${has && diff > 0 && !dup ? `<div class="bims-field"><label class="bims-label" for="v-obs">Observación <span class="req">*</span></label><textarea id="v-obs" class="bims-input">${esc(draft.obs)}</textarea></div>` : ""}
       <div class="hint">${has && diff < 0 && !dup ? "Al aplicar la prórroga, el pago pasa a Esperando diferencia." : "Al aprobar, se renueva la suscripción y le enviamos al cliente la factura electrónica por mail."}</div>
     </div>
     <div class="actions">
@@ -863,13 +914,26 @@ function verifyPanel(l) {
 }
 
 function resultPanel(l) {
-  const c = actual(l);
+  const c = actual(l), d = l.dev;
   const body = {
-    aprobado:`<div class="alert alert--ok" style="margin:0">${esc(l.por)} aprobó el pago el ${l.el}.</div>`,
+    aprobado:`<div class="alert alert--ok" style="margin:0">${esc(l.por)} aprobó el pago el ${l.el}.</div>` + (d ? `
+      <div class="tabnum" style="margin-top:12px"><b>Devolución registrada</b>
+        <div class="kv"><span>Monto devuelto</span><b>Gs. ${gs(d.monto)}</b></div>
+        <div class="kv"><span>Registrada por</span><span>${esc(d.por)} · ${d.el}</span></div>
+        <div class="kv"><span>Fecha de la devolución</span><span>${d.fecha}</span></div>
+        <div class="kv"><span>Nro. de operación</span><span>${esc(d.op)}</span></div>
+      </div>` : ""),
+    devolucion:`<div class="alert alert--info">${esc(l.por)} aprobó el pago el ${l.el}. El cliente pagó de más y hay que devolverle la diferencia.</div>
+      <div class="tabnum">
+        <div class="kv"><span>Recibido</span><span>Gs. ${gs(c.recibido)}</span></div>
+        <div class="kv"><span>Monto a validar</span><span>Gs. ${gs(c.recibido - l.excedente)}</span></div>
+        <div class="kv kv--strong"><span><b>A devolver</b></span><span class="big">Gs. ${gs(l.excedente)}</span></div>
+      </div>`,
     rechazado:`<div class="alert alert--warn" style="margin:0">${esc(l.por)} rechazó el pago el ${l.el}. Motivo: ${esc(c.motivo)}.</div>`,
     parcial:`<div class="alert alert--info" style="margin:0">${esc(l.por)} aplicó prórroga parcial el ${l.el}. Falta que el cliente transfiera <b>Gs. ${gs(aValidar(l))}</b> antes del ${l.limite}.</div>`,
   }[l.estado];
-  return `<div class="panel"><div class="panel__head"><span class="panel__title">Validación</span></div><div class="panel__body">${body}</div></div>`;
+  return `<div class="panel"><div class="panel__head"><span class="panel__title">Validación</span></div><div class="panel__body">${body}</div>
+    ${l.estado === "devolucion" ? `<div class="actions"><button type="button" class="bims-btn bims-btn--primary bims-btn--auto" data-devolver>Registrar devolución</button></div>` : ""}</div>`;
 }
 
 function renderDetail() {
@@ -879,13 +943,18 @@ function renderDetail() {
   const other = l.estado === "revision" && l.tomado && l.tomado !== ME;
   const free = l.estado === "revision" && !l.tomado;
   const c = l.comps.find(x => x.id === compSel) || actual(l);
+  const p = plazo(l);
+  const avisoPlazo = !p ? "" : p.k === "vencido"
+    ? `<div class="alert alert--err"><b>El plazo de revisión venció el ${p.fecha}</b> (${p.dias === 0 ? `hoy a las ${p.hora}` : p.hace}). Validalo cuanto antes para que no se bloquee la cuenta del cliente.</div>`
+    : p.k === "hoy" ? `<div class="alert alert--warn"><b>El plazo de revisión vence hoy</b> a las ${p.hora}.</div>`
+    : `<div class="small" style="margin:-4px 0 12px">Validar antes del ${l.limite} · ${p.k === "manana" ? `<span class="due-warn">vence mañana</span>` : `en ${plural(p.dias, "día", "días")}`}</div>`;
   $("#main").innerHTML = `
     <div class="bims-page-header"><h1 class="bims-page-header__title">Validar pago · Liquidación SaaS #${l.n}</h1><div class="bims-page-header__tools">${estadoBadge(l)}</div></div>
     <div class="bims-page-content">
       <div class="mobile-nav"><button class="bims-btn bims-btn--default bims-btn--sm" data-back>‹ Volver a la bandeja</button></div>
+      ${avisoPlazo}
       ${free ? `<div class="alert alert--info" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><span>Este caso no está asignado. Asignátelo para validar el pago.</span><button class="bims-btn bims-btn--primary bims-btn--sm" data-tomar>Asignarme</button></div>` : ""}
       ${other ? `<div class="alert alert--info">Este caso está asignado a ${esc(l.tomado)}. Solo podés consultarlo.</div>` : ""}
-      ${l.estado === "revision" ? `<div class="small" style="margin:-4px 0 12px">Validar antes del <span class="${l.vence==='hoy'?'due':''}">${l.limite}</span>${l.vence==='hoy'?' · vence hoy':''}</div>` : ""}
       <div class="panel" style="margin-bottom:18px"><div class="panel__body"><div class="liq-head">
         <div><div class="company">${esc(l.razon)}</div><div class="muted">RUC ${l.ruc}</div>
           <dl class="meta tabnum" style="margin:12px 0 0">
@@ -974,11 +1043,28 @@ function openProrroga() {
     </div>
     <div class="bims-modal__foot"><button class="bims-btn bims-btn--default bims-btn--auto" data-close>Cancelar</button><button class="bims-btn bims-btn--primary bims-btn--auto" data-ok-prorroga>Aplicar prórroga</button></div>`);
 }
+function openDevolucion() {
+  const l = get(view.n);
+  openModal(`<div class="bims-modal__head">Registrar devolución</div>
+    <div class="bims-modal__body">
+      <div class="bims-field"><label class="bims-label" for="d-monto">Monto a devolver</label>
+        <div class="bims-input-group"><input id="d-monto" class="bims-input tabnum" style="text-align:right" value="${gs(l.excedente)}" readonly><span class="bims-input-group__addon small">Gs.</span></div></div>
+      <p style="margin:0 0 16px">Hacé la transferencia al cliente y registrala acá con los datos de la operación.</p>
+      <div class="grid2">
+        <div class="bims-field"><label class="bims-label" for="d-fecha">Fecha de la devolución <span class="req">*</span></label>
+          <input id="d-fecha" type="date" class="bims-input" max="${dmy(HOY)}"></div>
+        <div class="bims-field"><label class="bims-label" for="d-op">Nro. de operación <span class="req">*</span></label>
+          <input id="d-op" class="bims-input" autocomplete="off"></div>
+      </div>
+    </div>
+    <div class="bims-modal__foot"><button class="bims-btn bims-btn--default bims-btn--auto" data-close>Cancelar</button><button class="bims-btn bims-btn--primary bims-btn--auto" data-ok-devolucion disabled>Registrar devolución</button></div>`);
+  $("#d-fecha").focus();
+}
 function toast(t, b) {
   $("#toastHost").innerHTML = `<div class="toast" role="status"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--st-ok-fg)" stroke-width="3"><path d="m5 12 5 5 9-10"/></svg><div><b>${t}</b><span class="small muted">${b}</span></div></div>`;
   clearTimeout(toast.t); toast.t = setTimeout(() => $("#toastHost").innerHTML = "", 4500);
 }
-const back = () => { view = { name:"list", estado:view.estado || "todos", filtro:view.filtro || "todos" }; render(); };
+const back = () => { view = { name:"list", estado:view.estado || "todos", filtro:view.filtro || "todos", urgentes:!!view.urgentes }; render(); };
 
 function renderSwitch() {
   let sw = $("#protoSwitch");
@@ -992,13 +1078,14 @@ function rerenderKeep(id) { const el = $("#"+id), pos = el && el.selectionStart;
 document.addEventListener("click", e => {
   const pv = e.target.closest("[data-preview]");
   if (pv) { PREVIEW = pv.dataset.preview === "1"; try { history.replaceState(null, "", PREVIEW ? "#con-preview" : "#sin-preview"); } catch (_) {} render(); return; }
-  const el = e.target.closest("[data-bell],[data-estado],[data-filtro],[data-open],[data-back],[data-tomar],[data-adic],[data-comp],[data-rechazar],[data-prorroga],[data-close],[data-close-bg],[data-ok-rechazar],[data-ok-prorroga],[data-file]");
+  const el = e.target.closest("[data-bell],[data-estado],[data-filtro],[data-open],[data-back],[data-tomar],[data-adic],[data-comp],[data-rechazar],[data-prorroga],[data-close],[data-close-bg],[data-ok-rechazar],[data-ok-prorroga],[data-file],[data-urgentes],[data-devolver],[data-ok-devolucion]");
   if (!el) { if (notifOpen && !e.target.closest("#notif")) { notifOpen = false; renderBell(); } return; }
   if (el.matches("a")) e.preventDefault();
   const d = el.dataset;
   if (d.closeBg !== undefined && e.target !== el) return;
   if (d.bell) { notifOpen = !notifOpen; renderBell(); }
-  else if (d.estado) { view.estado = d.estado; if (d.estado !== "todos" && d.estado !== "revision") view.filtro = "todos"; render(); }
+  else if (d.estado) { view.estado = d.estado; if (d.estado !== "todos" && d.estado !== "revision") { view.filtro = "todos"; view.urgentes = false; } render(); }
+  else if (d.urgentes !== undefined) { view.urgentes = !view.urgentes; if (view.urgentes && !["todos","revision"].includes(view.estado)) view.estado = "todos"; render(); }
   else if (d.filtro) { view.filtro = d.filtro; if (d.filtro !== "todos" && !["todos","revision"].includes(view.estado)) view.estado = "todos"; render(); }
   else if (d.open) open(+d.open);
   else if (d.back !== undefined) back();
@@ -1008,6 +1095,15 @@ document.addEventListener("click", e => {
   else if (d.comp) { compSel = +d.comp; render(); }
   else if (d.rechazar !== undefined) openReject();
   else if (d.prorroga !== undefined) openProrroga();
+  else if (d.devolver !== undefined) openDevolucion();
+  else if (d.okDevolucion !== undefined) {
+    const l = get(view.n), fecha = $("#d-fecha").value, op = $("#d-op").value.trim(), t = now();
+    if (!fecha || !op) return;
+    l.dev = { monto:l.excedente, por:ME, el:t, fecha:dmy(fecha), op };
+    l.estado = "aprobado";
+    l.log.push([t, `${ME} registró la devolución de Gs. ${gs(l.excedente)} (Op. ${op}).`], [t, "Se le avisó al cliente que se realizó la devolución."]);
+    closeModal(); render(); toast(`Registraste la devolución de Gs. ${gs(l.excedente)}`, "Le avisamos al cliente que ya le transferimos la diferencia.");
+  }
   else if (d.close !== undefined || d.closeBg !== undefined) closeModal();
   else if (d.okRechazar !== undefined) {
     const l = get(view.n), motivo = MOTIVOS[+$("#r-motivo").value], t = now();
@@ -1028,7 +1124,7 @@ document.addEventListener("input", e => {
   const id = e.target.id;
   if (id === "v-monto") { draft.monto = e.target.value; rerenderKeep(id); }
   if (id === "v-op") { draft.op = e.target.value; rerenderKeep(id); }
-  if (id === "v-obs") { draft.obs = e.target.value; const b = $("#verForm button[type=submit]"); if (b) b.disabled = !draft.obs.trim() || !draft.op.trim() || !draft.fecha; }
+  if (id === "d-fecha" || id === "d-op") { const b = $("[data-ok-devolucion]"); if (b) b.disabled = !$("#d-fecha").value || !$("#d-op").value.trim(); }
 });
 document.addEventListener("focusout", e => {
   if (e.target.id === "v-monto") { const m = parseM(draft.monto); if (m !== null) { draft.monto = gs(m); e.target.value = draft.monto; } }
@@ -1037,11 +1133,17 @@ document.addEventListener("change", e => { if (e.target.id === "v-fecha") { draf
 document.addEventListener("submit", e => {
   if (e.target.id !== "verForm") return;
   e.preventDefault();
-  const l = get(view.n), m = parseM(draft.monto), t = now();
+  const l = get(view.n), m = parseM(draft.monto), t = now(), exc = m - aValidar(l);
   Object.assign(actual(l), { estado:"aprobado", recibido:m, op:draft.op });
   actual(l).r.op = draft.op.trim() || actual(l).r.op;
   Object.assign(l, { estado:"aprobado", por:ME, el:t });
   l.log.push([t, `${ME} aprobó el pago por Gs. ${gs(m)}.`], [t, "Se renovó la suscripción y se envió la factura electrónica al cliente."]);
+  if (exc > 0) { // pago de más: queda una devolución pendiente
+    Object.assign(l, { estado:"devolucion", excedente:exc });
+    l.log.push([t, `Se registró una devolución pendiente de Gs. ${gs(exc)} (pago de más).`], [t, "Se envió al cliente el mail de devolución."]);
+    back(); toast(`Aprobaste el pago de la liquidación #${l.n}`, `Quedó una devolución pendiente de Gs. ${gs(exc)}.`);
+    return;
+  }
   back(); toast(`Aprobaste el pago de la liquidación #${l.n}`, "Renovamos la suscripción y le enviamos la factura electrónica al cliente.");
 });
 window.addEventListener("hashchange", () => { PREVIEW = location.hash !== "#sin-preview"; render(); });
