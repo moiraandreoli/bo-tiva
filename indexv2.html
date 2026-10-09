@@ -630,13 +630,13 @@ const LIQS = [
     cuenta:"Vencida · en gracia hasta 07-10-2026", limite:"02-10-2026 16:20",
     comps:[C(1,"30-09-2026 16:20","transferencia_sept.jpg",433000,"30/09/2026","Banco Atlas","Norma Giménez","AT-88120477")],
     estado:"revision", tomado:"Diego Ortiz",
-    log:[["30-09-2026 16:20","El cliente cargó el comprobante desde Mi BIMS."],["30-09-2026 16:20","Se aplicó el período de gracia de 7 días (cuenta vencida)."],["30-09-2026 16:20","Se notificó a Soporte por TIVA y por mail."],["01-10-2026 09:15","Diego Ortiz se asignó el caso."]] },
+    log:[["30-09-2026 16:20","El cliente cargó el comprobante desde Mi BIMS."],["30-09-2026 16:20","Se aplicó el período de prórroga de 7 días (cuenta vencida)."],["30-09-2026 16:20","Se notificó a Soporte por TIVA y por mail."],["01-10-2026 09:15","Diego Ortiz se asignó el caso."]] },
   { n:30514, abonado:"lomas11", razon:"HAY HIELO E.A.S.", ruc:"80098765-4", rep:"Ivan Amarilla", plan:"Plan Emprendedor", ciclo:"Mensual", planMonto:340000, cobertura:"05-10-2026 al 03-11-2026",
     adicRango:"01-09-2026 al 04-10-2026", adic:[A("Facturación electrónica",1,3000,81000),A("Usuarios",5,400,39600),A("Empresas",7,1100,207900),A("Puntos de venta",12,1900,570000),A("Establecimientos",8,1100,237600),A("Centros de producción",1,400,10800),A("Monedas",1,1100,29700),A("Cuentas de fondos",1,400,10800)],
     cuenta:"Vencida · en gracia hasta 08-10-2026", limite:"05-10-2026 10:12",
     comps:[C(1,"01-10-2026 10:12","transferencia_hayhielo.png",1527400,"01/10/2026","Banco Continental","HAY HIELO E.A.S.","004612880")],
     estado:"revision", tomado:null,
-    log:[["01-10-2026 10:12","El cliente cargó el comprobante desde Mi BIMS."],["01-10-2026 10:12","Se aplicó el período de gracia de 7 días (cuenta vencida)."],["01-10-2026 10:12","Se notificó a Soporte por TIVA y por mail."]] },
+    log:[["01-10-2026 10:12","El cliente cargó el comprobante desde Mi BIMS."],["01-10-2026 10:12","Se aplicó el período de prórroga de 7 días (cuenta vencida)."],["01-10-2026 10:12","Se notificó a Soporte por TIVA y por mail."]] },
   { n:30475, abonado:"kiosko-central", razon:"Kiosko Central", ruc:"5123009-1", rep:"Rubén Aquino", plan:"Plan Básico", ciclo:"Mensual", planMonto:340000, cobertura:"28-09-2026 al 27-10-2026",
     adicRango:"28-08-2026 al 27-09-2026", adic:[A("Usuarios",4,400,48000),A("Puntos de venta",3,1900,171000),A("Facturación electrónica",1,3000,90000)],
     cuenta:"Activa por prórroga hasta 05-10-2026", limite:"05-10-2026 23:59",
@@ -655,7 +655,7 @@ const LIQS = [
     cuenta:"Vencida · en gracia hasta 11-10-2026", limite:"07-10-2026 09:00",
     comps:[C(1,"04-10-2026 11:15","pago_octubre.pdf",1000000,"04/10/2026","Banco GNB","Ferretería Luxor S.A.","00918273")],
     estado:"revision", tomado:null,
-    log:[["04-10-2026 11:15","El cliente cargó el comprobante desde Mi BIMS."],["04-10-2026 11:15","Se aplicó el período de gracia de 7 días (cuenta vencida)."],["04-10-2026 11:15","Se notificó a Soporte por TIVA y por mail."]] },
+    log:[["04-10-2026 11:15","El cliente cargó el comprobante desde Mi BIMS."],["04-10-2026 11:15","Se aplicó el período de prórroga de 7 días (cuenta vencida)."],["04-10-2026 11:15","Se notificó a Soporte por TIVA y por mail."]] },
   { n:30490, abonado:"lamodelo", razon:"Panadería La Modelo", ruc:"4455120-3", rep:"Hugo Cáceres", plan:"Plan Básico", ciclo:"Mensual", planMonto:340000, cobertura:"16-10-2026 al 14-11-2026",
     adicRango:"16-09-2026 al 04-10-2026", adic:[A("Usuarios",2,400,15200)],
     cuenta:"Activa hasta 16-10-2026", limite:"07-10-2026 08:02",
@@ -782,7 +782,7 @@ function renderList() {
   const partes = [];
   if (nVenc) partes.push(`<b>${plural(nVenc, "pago", "pagos")} con plazo vencido</b>`);
   if (nHoy) partes.push(nVenc ? `<b>${plural(nHoy, "vence", "vencen")} hoy</b>` : `<b>${plural(nHoy, "pago vence", "pagos vencen")} hoy</b>`);
-  const aviso = !partes.length ? "" : `<div class="alert ${nVenc ? "alert--err" : "alert--warn"} alert--bar"><span>${partes.join(" y ")}. ${nVenc + nHoy === 1 ? "Revisalo" : "Revisalos"} primero: si termina el período de gracia, se bloquea la cuenta del cliente.</span><button class="bims-btn bims-btn--default bims-btn--sm" data-urgentes>${view.urgentes ? "Ver todos" : "Ver solo estos"}</button></div>`;
+  const aviso = !partes.length ? "" : `<div class="alert ${nVenc ? "alert--err" : "alert--warn"} alert--bar"><span>${partes.join(" y ")}. ${nVenc + nHoy === 1 ? "Revisalo" : "Revisalos"} primero: si termina el período de prórroga, se bloquea la cuenta del cliente.</span>${view.urgentes ? "" : `<button class="bims-btn bims-btn--default bims-btn--sm" data-urgentes>Ver solo estos</button>`}</div>`;
   const nLib = sinTomar().length, nMio = LIQS.filter(l => l.estado==="revision" && l.tomado===ME).length;
   const est = (k, label, n) => `<button class="${view.estado===k?'is-active':''}" data-estado="${k}">${label}${n!=null?` (${n})`:""}</button>`;
   const row = l => {
@@ -1084,7 +1084,7 @@ document.addEventListener("click", e => {
   const d = el.dataset;
   if (d.closeBg !== undefined && e.target !== el) return;
   if (d.bell) { notifOpen = !notifOpen; renderBell(); }
-  else if (d.estado) { view.estado = d.estado; if (d.estado !== "todos" && d.estado !== "revision") { view.filtro = "todos"; view.urgentes = false; } render(); }
+  else if (d.estado) { view.estado = d.estado; if (d.estado !== "revision") view.urgentes = false; if (d.estado !== "todos" && d.estado !== "revision") view.filtro = "todos"; render(); }
   else if (d.urgentes !== undefined) { view.urgentes = !view.urgentes; if (view.urgentes && !["todos","revision"].includes(view.estado)) view.estado = "todos"; render(); }
   else if (d.filtro) { view.filtro = d.filtro; if (d.filtro !== "todos" && !["todos","revision"].includes(view.estado)) view.estado = "todos"; render(); }
   else if (d.open) open(+d.open);
